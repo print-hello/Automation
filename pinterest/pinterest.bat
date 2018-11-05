@@ -28,7 +28,7 @@ set /a ss=%now_tme:~6,2%
 set /a ns=(%hh%*60+%mm%)*60+%ss%
 echo %hh%-%mm%-%ss%
 echo current time  %ns%
-echo %ns%>F:\pinterest\boot\config_time.txt
+echo %ns%>F:\pinterest\boot\configtime.txt
 
 
 xcopy Z:\host\pinterest F:\pinterest /y
@@ -62,7 +62,7 @@ echo current time  %ns%
 echo now times min  %now_tme%
 setlocal enabledelayedexpansion
 set adslzhanghao=0
-for /f "delims=" %%a in (F:\pinterest\boot\config_time.txt) do (set  adslzhanghao=%%a)
+for /f "delims=" %%a in (F:\pinterest\boot\configtime.txt) do (set  adslzhanghao=%%a)
 
 
 set /a ns1=%adslzhanghao%

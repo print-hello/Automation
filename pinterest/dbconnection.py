@@ -7,14 +7,14 @@ def read_one_sql(conn, sql):
     cur.close()
     return result
 
-def readAllSQL(conn, sql):
+def read_all_sql(conn, sql):
     cur = conn.cursor()
     cur.execute(sql)
     results = cur.fetchall()
     cur.close()
     return results
     
-def writeSQL(conn, sql):
+def write_sql(conn, sql):
     cur = conn.cursor()
     cur.execute(sql)
     conn.commit()

@@ -2,7 +2,7 @@ from selenium import webdriver
 import time
 import requests
 import json
-from dbConnection import readOneSQL, readAllSQL, writeSQL
+from dbconnection import read_one_sql, read_all_sql, write_sql
 import pymysql
 
 def login(driver, email, pwd, account_id, cookie, conn):
@@ -34,7 +34,7 @@ def login(driver, email, pwd, account_id, cookie, conn):
         cookies = cookies.replace('\\', '\\\\')
         cookies = cookies.replace('\"', '\\"')
         sql = "update account set cookie='%s' where id=%s" % (cookies, account_id)
-        writeSQL(conn, sql)
+        write_sql(conn, sql)
 
     return login_state
 
