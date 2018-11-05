@@ -21,12 +21,12 @@ import os
 class Main():
     def __init__(self):
         super(Main, self).__init__()
-        self.conn = pymysql.connect(host='172.16.254.251', port=3306,
-                                    user='root', password='Hbjjz7r9ptyefzjv48ur2',
-                                    db='py_pinterest', charset='utf8mb4',
+        self.conn = pymysql.connect(host='localhost', port=3306,
+                                    user='root', password='******',
+                                    db='pinterest', charset='utf8mb4',
                                     cursorclass=pymysql.cursors.DictCursor)
-        self.conn1 = pymysql.connect(host='172.16.254.251', port=3306,
-                                     user='root', password='Hbjjz7r9ptyefzjv48ur2',
+        self.conn1 = pymysql.connect(host='localhost', port=3306,
+                                     user='root', password='******',
                                      db='vpn', charset='utf8mb4',
                                      cursorclass=pymysql.cursors.DictCursor)
         self.driver = ''
@@ -45,13 +45,12 @@ class Main():
         self.upload_pic_min_num = 3
         self.upload_pic_max_num = 5
         self.random_browsing_control = 1
-        self.browsing_pic_min_num = 10
-        self.browsing_pic_max_num = 12
+        self.browsing_pic_min_num = 2
+        self.browsing_pic_max_num = 6
         self.access_home_page_control = 0
         self.create_board_control = 0
         self.save_pic_control = 1
-        self.search_word_control = 0
-        self.search_key_words_num = 3
+        self.search_key_words_num = 0
         self.follow_num = 0
         self.pinterest_acotion()
 
@@ -148,7 +147,7 @@ class Main():
                     #     self.upload_pic()
                     if self.random_browsing_control == 1:
                         self.random_browsing()
-                    if self.search_word_control == 1:
+                    if self.search_key_words_num > 0:
                         self.search_word()
                     if self.follow_num > 0:
                         self.follow()
