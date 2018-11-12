@@ -1,4 +1,4 @@
-﻿'''
+'''
 Author: Vinter Wang
 Email: printhello@163.com
 '''
@@ -38,20 +38,22 @@ class Main():
         self.cookie = ''
         self.account_id = 0
         self.success_num = 0
+        self.config_id = 0
         # Try to locate the home element. If there is off, you don't need to do all kinds of pop-ups
         self.login_state_flag = ''
         # Steps and params to control
         self.upload_pic_control = 0
-        self.upload_pic_min_num = 3
-        self.upload_pic_max_num = 5
-        self.random_browsing_control = 1
-        self.browsing_pic_min_num = 2
-        self.browsing_pic_max_num = 6
+        self.upload_pic_min_num = 0
+        self.upload_pic_max_num = 0
+        self.random_browsing_control = 0
+        self.browsing_pic_min_num = 0
+        self.browsing_pic_max_num = 0
         self.access_home_page_control = 0
         self.create_board_control = 0
-        self.save_pic_control = 1
+        self.save_pic_control = 0
         self.search_key_words_num = 0
         self.follow_num = 0
+        self.pin_self_count = 0
         self.pinterest_acotion()
 
     def pinterest_acotion(self):
@@ -65,6 +67,7 @@ class Main():
 
             self.get_account()
             if self.account_id > 0:
+                self.get_config()
                 self.success_num += 1
                 connect_vpn(self.conn1, self.vpn)
                 write_txt_time()
@@ -118,7 +121,6 @@ class Main():
                         print('Error code: 9-2')
                     except Exception as e:
                         pass
-
                 write_sql(self.conn, sql)
                 if login_state == 0 or self.login_state_flag == 'off':
                     if self.hostname == 'ChangePassword':
@@ -145,10 +147,12 @@ class Main():
                     #     self.create_board()
                     # if self.upload_pic_control == 1:
                     #     self.upload_pic()
+                    if self.pin_self_count > 0:
+                        self.click_specific_pin()
                     if self.random_browsing_control == 1:
                         self.random_browsing()
                     if self.search_key_words_num > 0:
-                        self.search_word()
+                        self.search_key_words()
                     if self.follow_num > 0:
                         self.follow()
                     print('End of account processing...')
@@ -183,6 +187,7 @@ class Main():
             self.pwd = result["pw"]
             self.vpn = result['vpn']
             self.cookie = result['cookie']
+            self.config_id = result['setting_other']
             print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
             write_txt_time()
@@ -196,11 +201,31 @@ class Main():
                 self.pwd = result["pw"]
                 self.vpn = result['vpn']
                 self.cookie = result['cookie']
-                print("Start account processing:", self.email)
+                self.config_id = result['setting_other']
+                print("Start account processing:", "ID:",
+                  self.account_id, "Email:", self.email)
                 sql = "UPDATE account set action_computer='%s' where id=%s" % (
                     self.hostname, self.account_id)
                 write_sql(self.conn, sql)
                 write_txt_time()
+
+    def get_config(self):
+        print('Run configuration:', self.config_id)
+        if self.hostname == 'ChangePassword':
+            sql = 'SELECT * from configuration where priority=0'
+        else:
+            sql = 'SELECT * from configuration where priority=%s' % self.config_id
+        result = read_one_sql(self.conn, sql)
+        # choice_config_sorted = sorted(results, key=lambda priority: priority['priority'])
+        if result:
+            self.random_browsing_control = result['random_browsing_control']
+            self.browsing_pic_min_num = result['browsing_pic_min_num']
+            self.browsing_pic_max_num = result['browsing_pic_max_num']
+            self.access_home_page_control = result['access_home_page_control']
+            self.save_pic_control = result['save_pic_control']
+            self.search_key_words_num = result['search_key_words_num']
+            self.follow_num = result['follow_num']
+            self.pin_self_count = result['pin_self_count']
 
     # Access to the home page
     def access_home_page(self):
@@ -289,7 +314,6 @@ class Main():
                     cur1.close()
                     driver.get(upload_pic_path)
                     time.sleep(5)
-
                     flag_content = 'Psst! You already saved this Pin to'
                     if driver.page_source.find(flag_content) > -1:
                         print('is saved...')
@@ -301,7 +325,6 @@ class Main():
                         except Exception as e:
                             print('Image save failed, element not found')
                         time.sleep(1)
-
                         try:
                             win32api.keybd_event(13, 0, 0, 0)
                             win32api.keybd_event(
@@ -309,7 +332,6 @@ class Main():
                             time.sleep(5)
                         except Exception as e:
                             pass
-
                         try:
                             driver.find_element_by_xpath(
                                 "//div[@class='mainContainer']//div[1]/div/button").click()
@@ -318,9 +340,7 @@ class Main():
                         except Exception as e:
                             print("You don't need to create a taxonomy",
                                   upload_pic_board)
-
                         time.sleep(5)
-
                     sql = "UPDATE save_web_pic set saved = 2 where id = %s" % upload_pic_id
                     cur1 = conn1.cursor()
                     cur1.execute(sql)
@@ -355,14 +375,17 @@ class Main():
                             self.close_AD_page()
                         except Exception as e:
                             if search_pattern == 1:
-                                self.save_pic(board_name, belong)
+                                self.save_pic(board_name)
                             elif search_pattern == 0 and self.save_pic_control == 1 and (i + 1) % 2 == 0:
                                 self.save_pic()
                         win32api.keybd_event(27, 0, 0, 0)
                         win32api.keybd_event(
                             27, 0, win32con.KEYEVENTF_KEYUP, 0)
                         time.sleep(3)
-                        self.driver.execute_script('window.scrollTo(1, 2000)')
+                        # self.driver.execute_script('window.scrollTo(1, 4000)')
+                        win32api.keybd_event(35, 0, 0, 0)
+                        win32api.keybd_event(
+                            35, 0, win32con.KEYEVENTF_KEYUP, 0)
                         time.sleep(3)
                         break
                     else:
@@ -384,12 +407,16 @@ class Main():
         time.sleep(1)
 
     # save a picture
-    def save_pic(self, board_name='like', belong=2):
+    def save_pic(self, board_name='like', belong=2, specific_pin_url='empty', specific_pin_pic_url='empty'):
         saved_flag = ''
-        pin_url = self.driver.current_url
-        time.sleep(1)
-        pin_pic_url = self.driver.find_element_by_xpath(
-            '//a[@class="imageLink"]//img').get_attribute('src')
+        if specific_pin_url != 'empty':
+            pin_url = specific_pin_url
+            pin_pic_url = specific_pin_pic_url
+        else:
+            pin_url = self.driver.current_url
+            time.sleep(1)
+            pin_pic_url = self.driver.find_element_by_xpath(
+                '//a[@class="imageLink"]//img').get_attribute('src')
         add_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             saved_flag = self.driver.find_elements_by_xpath(
@@ -476,7 +503,7 @@ class Main():
             '//div[@class="ReactModalPortal"]//button[@type="submit"]').click()
         time.sleep(2)
 
-    def search_word(self):
+    def search_key_words(self):
         print('Open search mode!')
         sql = "SELECT * from search_words order by RAND() limit %s" % self.search_key_words_num
         results = read_all_sql(self.conn, sql)
@@ -515,32 +542,50 @@ class Main():
         write_txt_time()
 
     def click_specific_pin(self):
-        sql = "SELECT http from account_http"
+        print('Start searching for our company images')
+        sql = "SELECT web_url from follow_url"
         results = read_all_sql(self.conn, sql)
         http_in_sql_list = []
         for res in results:
-            http_in_sql = res['http']
+            http_in_sql = res['web_url']
             http_in_sql_list.append(http_in_sql)
-        web_pin_arr = self.driver.find_elements_by_xpath(
-            "//div[@data-grid-item='true']")
-        for web_pin_one in web_pin_arr:
-            ActionChains(self.driver).move_to_element(web_pin_one).perform()
-            time.sleep(2)
-            try:
-                web_pin = self.driver.find_element_by_xpath(
-                    "//a[@class='navigateLink']//div[2]/div")
-                web_pin_url = web_pin.text
-                # print(web_pin_url)
-                if web_pin_url in http_in_sql_list:
-                    web_pin.click()
-                    time.sleep(5)
-                    try:
-                        self.close_AD_page()
-                    except:
-                        self.save_pic(belong=1)
-            except Exception as e:
-                pass
-        write_txt_time()
+        pin_count = 0
+        for _ in range(2):
+            if pin_count >= self.pin_self_count:
+                break
+            web_pin_arr = self.driver.find_elements_by_xpath(
+                "//div[@data-grid-item='true']")
+            # print(len(web_pin_arr))
+            for web_pin_one in web_pin_arr:    
+                if pin_count >= self.pin_self_count:
+                    break
+                try:
+                    ActionChains(self.driver).move_to_element(web_pin_one).perform()
+                    time.sleep(3)
+                except:
+                    pass
+                try:
+                    web_pin = self.driver.find_element_by_xpath(
+                        "//a[@class='navigateLink']//div[2]/div")
+                    time.sleep(2)
+                    web_pin_url = web_pin.text
+                    # print(web_pin_url)
+                    if web_pin_url in http_in_sql_list:
+                        pin_count += 1
+                        time.sleep(1)
+                        specific_pin_url = web_pin_one.find_element_by_xpath(
+                            './/div[@class="pinWrapper"]/div/a').get_attribute('href')
+                        time.sleep(1)
+                        specific_pin_pic_url = web_pin_one.find_element_by_xpath(
+                            './/div[@class="pinWrapper"]//img').get_attribute('src')
+                        self.save_pic(
+                            belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
+                except Exception as e:
+                    pass
+            win32api.keybd_event(35, 0, 0, 0)
+            win32api.keybd_event(35, 0, win32con.KEYEVENTF_KEYUP, 0)
+            time.sleep(5)
+            write_txt_time()
 
     def follow(self):
         print('Turn on the follow function, count:', self.follow_num)
@@ -555,16 +600,16 @@ class Main():
                     follow_state = self.driver.find_element_by_xpath('//div[@class="fixedHeader"]//div[3]//div[2]/button/div').text
                     if follow_state == 'Follow':  
                         self.driver.find_element_by_xpath('//div[@class="fixedHeader"]//div[3]//div[2]/button').click()
-                        for scroll in range(3):
-                            self.driver.execute_script('window.scrollTo(1, 1000)')
-                            time.sleep(3)
+                        time.sleep(1)
+                        self.driver.execute_script('window.scrollTo(1, 4000)')
+                        time.sleep(3)
                 except:
                     follow_state = self.driver.find_element_by_xpath('//div[@class="CreatorFollowButton step0"]//div[2]/div').text
                     if follow_state == 'Follow':
                         self.driver.find_element_by_xpath('//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
-                        for scroll in range(3):
-                            self.driver.execute_script('window.scrollTo(1, 1000)')
-                            time.sleep(3)
+                        time.sleep(1)
+                        self.driver.execute_script('window.scrollTo(1, 4000)')
+                        time.sleep(3)
         write_txt_time()
 
 
