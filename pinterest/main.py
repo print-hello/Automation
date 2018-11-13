@@ -172,6 +172,7 @@ class Main():
 
     # Access to the account
     def get_account(self):
+        self.get_account_count()
         if self.hostname == 'Vinter-Wang':
             sql = 'SELECT * from account where id=1'
         elif self.hostname == 'ChangePassword':
@@ -208,6 +209,23 @@ class Main():
                     self.hostname, self.account_id)
                 write_sql(self.conn, sql)
                 write_txt_time()
+
+    def get_account_count(self):
+        sql = 'SELECT * from account_count'
+        result = read_one_sql(self.conn, sql)
+        if result:
+            all_count = result['all_count']
+            real_time_num = result['real_time_num']
+            last_update_time = result['last_update_time']
+            if str(last_update_time) < self.current_time:
+                sql = '''UPDATE account_count set last_update_time="%s", all_count=
+                    (SELECT count(1) from `account` where state=1) where id=1'''
+            else:
+                sql = 'UPDATE account_count set real_time_num=(SELECT count(1) from `account` where state=1) where id=1'
+            write_sql(self.conn, sql)
+        if all_count - real_time_num > 10:
+            os.system('shutdown -s')
+            print('Too many account errors today to suspend operations!')
 
     def get_config(self):
         print('Run configuration:', self.config_id)
