@@ -26,9 +26,9 @@ class Main():
                                     db='pinterest', charset='utf8mb4',
                                     cursorclass=pymysql.cursors.DictCursor)
         self.conn1 = pymysql.connect(host='localhost', port=3306,
-                                     user='root', password='******',
-                                     db='vpn', charset='utf8mb4',
-                                     cursorclass=pymysql.cursors.DictCursor)
+                                    user='root', password='******',
+                                    db='vpn', charset='utf8mb4',
+                                    cursorclass=pymysql.cursors.DictCursor)
         self.driver = ''
         self.hostname = socket.gethostname()
         self.current_time = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -72,7 +72,8 @@ class Main():
                 connect_vpn(self.conn1, self.vpn)
                 write_txt_time()
                 options = webdriver.ChromeOptions()
-                # options.add_argument('user-agent="Mozilla/5.0 (iPod; U; CPU iPhone OS 2_1 like Mac OS X; ja-jp) AppleWebKit/525.18.1 (KHTML, like Gecko) Version/3.1.1 Mobile/5F137 Safari/525.20"')
+                # options.add_argument('user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:11.0) Gecko/20100101 Firefox/11.0"')
+                # options.add_argument("--proxy-server=https://66.78.60.38:21769")
                 prefs = {
                     'profile.default_content_setting_values':
                     {'notifications': 2
@@ -219,7 +220,7 @@ class Main():
             last_update_time = result['last_update_time']
             if str(last_update_time) < self.current_time:
                 sql = '''UPDATE account_count set last_update_time="%s", all_count=
-                    (SELECT count(1) from `account` where state=1) where id=1'''
+                    (SELECT count(1) from `account` where state=1) where id=1''' % self.current_time
             else:
                 sql = 'UPDATE account_count set real_time_num=(SELECT count(1) from `account` where state=1) where id=1'
             write_sql(self.conn, sql)
@@ -569,14 +570,10 @@ class Main():
             http_in_sql_list.append(http_in_sql)
         pin_count = 0
         for _ in range(2):
-            if pin_count >= self.pin_self_count:
-                break
             web_pin_arr = self.driver.find_elements_by_xpath(
                 "//div[@data-grid-item='true']")
             # print(len(web_pin_arr))
             for web_pin_one in web_pin_arr:    
-                if pin_count >= self.pin_self_count:
-                    break
                 try:
                     ActionChains(self.driver).move_to_element(web_pin_one).perform()
                     time.sleep(3)
@@ -600,6 +597,10 @@ class Main():
                             belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
                 except Exception as e:
                     pass
+                if pin_count == self.pin_self_count:
+                    break
+            if pin_count == self.pin_self_count:
+                break
             win32api.keybd_event(35, 0, 0, 0)
             win32api.keybd_event(35, 0, win32con.KEYEVENTF_KEYUP, 0)
             time.sleep(5)
