@@ -40,7 +40,7 @@ def write_txt_time():
     time_min = int(time.strftime('%M', time.localtime(time.time()))) * 60
     time_sec = int(time.strftime('%S', time.localtime(time.time())))
     time_str = str(time_hour + time_min + time_sec)
-    with open('F:\\pinterest\\boot\\configtime.txt', 'w', encoding='utf-8') as fp:
+    with open('F:\\pinterest\\boot\\config_time.txt', 'w', encoding='utf-8') as fp:
         fp.write(time_str)
 
 def connect_vpn(conn, vpn):

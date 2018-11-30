@@ -62,7 +62,7 @@ echo current time  %ns%
 echo now times min  %now_tme%
 setlocal enabledelayedexpansion
 set adslzhanghao=0
-for /f "delims=" %%a in (F:\pinterest\boot\configtime.txt) do (set  adslzhanghao=%%a)
+for /f "delims=" %%a in (F:\pinterest\boot\config_time.txt) do (set  adslzhanghao=%%a)
 
 
 set /a ns1=%adslzhanghao%
