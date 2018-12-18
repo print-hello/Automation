@@ -36,6 +36,7 @@ class Main():
         self.pwd = ''
         self.vpn = ''
         self.cookie = ''
+        self.agent = ''
         self.account_id = 0
         self.success_num = 0
         self.config_id = 0
@@ -51,7 +52,6 @@ class Main():
         self.access_home_page_control = 0
         self.create_board_control = 0
         self.save_pic_control = 0
-        self.search_key_words_num = 0
         self.follow_num = 0
         self.pin_self_count = 0
         self.pinterest_acotion()
@@ -72,8 +72,7 @@ class Main():
                 connect_vpn(self.conn1, self.vpn)
                 write_txt_time()
                 options = webdriver.ChromeOptions()
-                # options.add_argument('user-agent="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:11.0) Gecko/20100101 Firefox/11.0"')
-                # options.add_argument("--proxy-server=https://66.78.60.38:21769")
+                options.add_argument('user-agent="%s"' % self.agent)
                 prefs = {
                     'profile.default_content_setting_values':
                     {'notifications': 2
@@ -148,12 +147,10 @@ class Main():
                     #     self.create_board()
                     # if self.upload_pic_control == 1:
                     #     self.upload_pic()
-                    if self.pin_self_count > 0:
-                        self.click_specific_pin()
                     if self.random_browsing_control == 1:
                         self.random_browsing()
-                    if self.search_key_words_num > 0:
-                        self.search_key_words()
+                    if self.pin_self_count > 0:
+                        self.click_specific_pin()
                     if self.follow_num > 0:
                         self.follow()
                     print('End of account processing...')
@@ -167,9 +164,9 @@ class Main():
                 print('Not data...')
                 write_txt_time()
                 time.sleep(10)
-                print('The computer is about to be turned off')
-                os.system('shutdown -s')
-                time.sleep(120)
+                print('The system will reboot in 30 minutes')
+                os.system('shutdown -r -t 1800')
+                time.sleep(9999)
 
     # Access to the account
     def get_account(self):
@@ -190,6 +187,17 @@ class Main():
             self.vpn = result['vpn']
             self.cookie = result['cookie']
             self.config_id = result['setting_other']
+            self.agent = result['agent']
+            if not self.agent:
+                sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                agent_in_sql = read_one_sql(self.conn, sql)
+                if agent_in_sql:
+                    self.agent = agent_in_sql['user_agent']
+                    agent_id = agent_in_sql['Id']
+                    sql = 'UPDATE account set agent="%s" where id=%s' % (self.agent, self.account_id)
+                    write_sql(self.conn, sql)
+                    sql = 'UPDATE user_agent set state=1 where id=%s' % agent_id
+                    write_sql(self.conn, sql)
             print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
             write_txt_time()
@@ -204,6 +212,17 @@ class Main():
                 self.vpn = result['vpn']
                 self.cookie = result['cookie']
                 self.config_id = result['setting_other']
+                self.agent = result['agent']
+                if not self.agent:
+                    sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                    agent_in_sql = read_one_sql(self.conn, sql)
+                    if agent_in_sql:
+                        self.agent = agent_in_sql['user_agent']
+                        agent_id = agent_in_sql['Id']
+                        sql = 'UPDATE account set agent="%s" where id=%s' % (self.agent, self.account_id)
+                        write_sql(self.conn, sql)
+                        sql = 'UPDATE user_agent set state=1 where id=%s' % agent_id
+                        write_sql(self.conn, sql)
                 print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
                 sql = "UPDATE account set action_computer='%s' where id=%s" % (
@@ -225,7 +244,8 @@ class Main():
                 sql = 'UPDATE account_count set real_time_num=(SELECT count(1) from `account` where state=1) where id=1'
             write_sql(self.conn, sql)
         if all_count - real_time_num > 10:
-            os.system('shutdown -s')
+            os.system('shutdown -r -t 1800')
+            time.sleep(9999)
             print('Too many account errors today to suspend operations!')
 
     def get_config(self):
@@ -242,7 +262,6 @@ class Main():
             self.browsing_pic_max_num = result['browsing_pic_max_num']
             self.access_home_page_control = result['access_home_page_control']
             self.save_pic_control = result['save_pic_control']
-            self.search_key_words_num = result['search_key_words_num']
             self.follow_num = result['follow_num']
             self.pin_self_count = result['pin_self_count']
 
@@ -254,7 +273,7 @@ class Main():
         # print(home_page)
         sql = 'UPDATE account set home_page="%s" where id=%s' % (
             home_page, self.account_id)
-        write_sql(self.conn, sql)
+        write_sql(self.conn, sql)   
         time.sleep(2)
 
     def handle_pop_up(self):
@@ -371,13 +390,9 @@ class Main():
 
     # Random browse
     def random_browsing(self, search_pattern=0, board_name='like', belong=2):
-        if search_pattern == 1:
-            random_browsing_num = self.search_key_words_num
-            print('Save picture number:', random_browsing_num)
-        else:
-            random_browsing_num = random.randint(
-                self.browsing_pic_min_num, self.browsing_pic_max_num)
-            print('Start random browsing:', random_browsing_num, 'time')
+        random_browsing_num = random.randint(
+            self.browsing_pic_min_num, self.browsing_pic_max_num)
+        print('Start random browsing:', random_browsing_num, 'time')
         for i in range(random_browsing_num):
             try:
                 write_txt_time()
@@ -522,46 +537,39 @@ class Main():
             '//div[@class="ReactModalPortal"]//button[@type="submit"]').click()
         time.sleep(2)
 
-    def search_key_words(self):
-        print('Open search mode!')
-        sql = "SELECT * from search_words order by RAND() limit %s" % self.search_key_words_num
-        results = read_all_sql(self.conn, sql)
-        if results:
-            for res in results:
-                search_key_words = res['word']
-                board_name = res['boards']
-                belong = res['us']
-                # self.driver.get('https://www.pinterest.com/')
-                time.sleep(5)
-                try:
-                    self.driver.find_element_by_name('q').click()
-                    time.sleep(1)
-                    self.driver.find_element_by_name('q').clear()
-                    time.sleep(1)
-                    slef.driver.find_element_by_name(
-                        'q').send_keys(search_key_words)
-                    time.sleep(1)
-                    self.driver.find_element_by_xpath(
-                        '//div[@class="HeaderContent"]//div[2]/div/div[3]/div').click()
-                except:
-                    self.driver.find_element_by_name("searchBoxInput").click()
-                    time.sleep(1)
-                    self.driver.find_element_by_name("searchBoxInput").clear()
-                    time.sleep(1)
-                    self.driver.find_element_by_name(
-                        "searchBoxInput").send_keys(search_key_words)
-                    time.sleep(1)
-                    self.driver.find_element_by_xpath(
-                        '//div[@class="HeaderContent"]//div[2]/div/div[3]/div').click()
-                time.sleep(5)
-                if belong == 1:
-                    self.random_browsing(1, board_name, belong)
-                elif belong == 2:
-                    self.random_browsing()
-        write_txt_time()
-
     def click_specific_pin(self):
         print('Start searching for our company images')
+        sql = "SELECT * from search_words where us=1 order by RAND() limit 1"
+        result = read_one_sql(self.conn, sql)
+        if result:
+            search_key_words = result['word']
+            board_name = result['boards']
+            # belong = result['us']
+            try:
+                self.driver.find_element_by_name('q').click()
+                time.sleep(1)
+                self.driver.find_element_by_name('q').clear()
+                time.sleep(1)
+                self.driver.find_element_by_name(
+                    'q').send_keys(search_key_words)
+                time.sleep(1)
+                win32api.keybd_event(13, 0, 0, 0)
+                win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
+            except:
+                pass
+            try:
+                self.driver.find_element_by_name("searchBoxInput").click()
+                time.sleep(1)
+                self.driver.find_element_by_name("searchBoxInput").clear()
+                time.sleep(1)
+                self.driver.find_element_by_name(
+                    "searchBoxInput").send_keys(search_key_words)
+                time.sleep(1)
+                win32api.keybd_event(13, 0, 0, 0)
+                win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
+            except:
+                pass
+            time.sleep(8)      
         sql = "SELECT web_url from follow_url"
         results = read_all_sql(self.conn, sql)
         http_in_sql_list = []
@@ -570,9 +578,14 @@ class Main():
             http_in_sql_list.append(http_in_sql)
         pin_count = 0
         for _ in range(2):
-            web_pin_arr = self.driver.find_elements_by_xpath(
-                "//div[@data-grid-item='true']")
-            # print(len(web_pin_arr))
+            try:
+                web_pin_arr = self.driver.find_elements_by_xpath(
+                    "//div[@data-grid-item='true']")
+                # print(len(web_pin_arr))
+            except:
+                time.sleep(3)
+                web_pin_arr = self.driver.find_elements_by_xpath(
+                    "//div[@data-grid-item='true']")
             for web_pin_one in web_pin_arr:    
                 try:
                     ActionChains(self.driver).move_to_element(web_pin_one).perform()
@@ -594,7 +607,7 @@ class Main():
                         specific_pin_pic_url = web_pin_one.find_element_by_xpath(
                             './/div[@class="pinWrapper"]//img').get_attribute('src')
                         self.save_pic(
-                            belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
+                            board_name=board_name,belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
                 except Exception as e:
                     pass
                 if pin_count == self.pin_self_count:
@@ -613,7 +626,10 @@ class Main():
         if results:
             for res in results:
                 home_url = res['home_url']
-                self.driver.get(home_url)
+                try:
+                    self.driver.get(home_url)
+                except:
+                    pass
                 time.sleep(5)
                 try:
                     follow_state = self.driver.find_element_by_xpath('//div[@class="fixedHeader"]//div[3]//div[2]/button/div').text
@@ -623,12 +639,16 @@ class Main():
                         self.driver.execute_script('window.scrollTo(1, 4000)')
                         time.sleep(3)
                 except:
+                    pass
+                try:
                     follow_state = self.driver.find_element_by_xpath('//div[@class="CreatorFollowButton step0"]//div[2]/div').text
                     if follow_state == 'Follow':
                         self.driver.find_element_by_xpath('//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
                         time.sleep(1)
                         self.driver.execute_script('window.scrollTo(1, 4000)')
                         time.sleep(3)
+                except:
+                    pass
         write_txt_time()
 
 

@@ -5,6 +5,7 @@ import json
 from dbconnection import read_one_sql, read_all_sql, write_sql
 import pymysql
 
+
 def login(driver, email, pwd, account_id, cookie, conn):
     login_url = 'https://www.pinterest.com/login/?referrer=home_page'
     login_flag = ''

@@ -1,5 +1,6 @@
 import pymysql
 
+
 def read_one_sql(conn, sql):
     cur = conn.cursor()
     cur.execute(sql)

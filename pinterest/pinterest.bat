@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 :DeleteHistory
 	set m=C:\Users\Administrator\Downloads
 	del "%m%\*" /f /s /q /a
@@ -28,7 +28,7 @@ set /a ss=%now_tme:~6,2%
 set /a ns=(%hh%*60+%mm%)*60+%ss%
 echo %hh%-%mm%-%ss%
 echo current time  %ns%
-echo %ns%>F:\pinterest\boot\configtime.txt
+echo %ns%>F:\pinterest\boot\config_time.txt
 
 
 xcopy Z:\host\pinterest F:\pinterest /y
