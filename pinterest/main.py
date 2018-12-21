@@ -110,15 +110,14 @@ class Main():
                         # print(error_type)
                         if error_type == 'Reset your password':
                             sql = 'UPDATE account set state=9, login_times=0, action_computer="-" where id=%s' % self.account_id
-                            print('Error code: 9-1')
+                            print('Error code: 9')
                     except Exception as e:
                         pass
                     time.sleep(3)
                     try:
-                        error_type = self.driver.find_element_by_xpath(
-                            '//button[@aria-label="Reset your password"]')
-                        sql = 'UPDATE account set state=9, login_times=0, action_computer="-" where id=%s' % self.account_id
-                        print('Error code: 9-2')
+                        if self.driver.page_source.find('Your account has been suspended') > -1:
+                            sql = 'UPDATE account set state=99, login_times=0, action_computer="-" where id=%s' % self.account_id
+                            print('Error code: 99')
                     except Exception as e:
                         pass
                 write_sql(self.conn, sql)
@@ -189,7 +188,7 @@ class Main():
             self.config_id = result['setting_other']
             self.agent = result['agent']
             if not self.agent:
-                sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                sql = 'SELECT * from user_agent where terminal="computer" order by RAND() limit 1'
                 agent_in_sql = read_one_sql(self.conn, sql)
                 if agent_in_sql:
                     self.agent = agent_in_sql['user_agent']
@@ -214,7 +213,7 @@ class Main():
                 self.config_id = result['setting_other']
                 self.agent = result['agent']
                 if not self.agent:
-                    sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                    sql = 'SELECT * from user_agent where terminal="computer" order by RAND() limit 1'
                     agent_in_sql = read_one_sql(self.conn, sql)
                     if agent_in_sql:
                         self.agent = agent_in_sql['user_agent']
@@ -493,6 +492,7 @@ class Main():
                     else:
                         raise Exception
                 except:
+                    time.sleep(3)
                     self.driver.find_element_by_xpath(
                         '//div[@data-test-id="create-board"]/div').click()
                     time.sleep(3)

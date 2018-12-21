@@ -69,7 +69,7 @@ class Main():
                 write_txt_time()
                 options = webdriver.ChromeOptions()
                 options.add_argument('user-agent="%s"' % self.agent)
-                options.add_argument("--proxy-server=http://127.0.0.1:%d" % self.port)
+                options.add_argument("--proxy-server=http://localhost:%d" % self.port)
                 prefs = {
                     'profile.default_content_setting_values':
                     {'notifications': 2
@@ -107,15 +107,14 @@ class Main():
                         # print(error_type)
                         if error_type == 'Reset your password':
                             sql = 'UPDATE account set state=9, login_times=0, action_computer="-" where id=%s' % self.account_id
-                            print('Error code: 9-1')
+                            print('Error code: 9')
                     except Exception as e:
                         pass
                     time.sleep(3)
                     try:
-                        error_type = self.driver.find_element_by_xpath(
-                            '//button[@aria-label="Reset your password"]')
-                        sql = 'UPDATE account set state=9, login_times=0, action_computer="-" where id=%s' % self.account_id
-                        print('Error code: 9-2')
+                        if self.driver.page_source.find('Your account has been suspended') > -1:
+                            sql = 'UPDATE account set state=99, login_times=0, action_computer="-" where id=%s' % self.account_id
+                            print('Error code: 99')
                     except Exception as e:
                         pass
                 write_sql(self.conn, sql)
@@ -169,7 +168,7 @@ class Main():
     def get_account(self):
         self.get_account_count()
         if self.hostname == 'Vinter-Wang':
-            sql = 'SELECT * from account where id=1'
+            sql = 'SELECT * from account where id=132'
         elif self.hostname == 'ChangePassword':
             sql = "SELECT * from account where action_time<'%s' and state=9 or state=4 and login_times<4 order by action_time asc limit 1" % (
                 self.current_time)
@@ -501,17 +500,19 @@ class Main():
                     else:
                         raise Exception
                 except:
+                    time.sleep(3)
                     self.driver.find_element_by_xpath(
                         '//div[@data-test-id="create-board"]/div').click()
                     time.sleep(3)
                     self.driver.find_element_by_name(
                         'boardName').clear()
-                    time.sleep(1)
+                    time.sleep(2)
                     self.driver.find_element_by_name(
                         'boardName').send_keys(board_name)
+                    time.sleep(2)
                     self.driver.find_element_by_xpath(
                         "//form//button[@type='submit']").click()
-                    time.sleep(2)
+                    time.sleep(3)
                 if belong == 2:
                     sql = '''INSERT INTO other_pin_history (account_id, pin_url, pin_pic_url, add_time) values (
                         %s, %s, %s, %s)'''
@@ -541,13 +542,13 @@ class Main():
                 home_page = result['home_page'] + 'boards/'
             try:
                 self.driver.get(home_page)
-                time.sleep(3)
+                time.sleep(5)
                 self.driver.find_element_by_xpath(
                     '//button[@aria-label="Profile actions overflow"]').click()
                 time.sleep(2)
                 self.driver.find_element_by_xpath(
                     '//div[@class="fixedHeader"]//div[text()="Create board"]').click()
-                time.sleep(2)
+                time.sleep(5)
                 self.driver.find_element_by_xpath(
                     '//form//input[@id="boardEditName"]').send_keys(board_name)
                 time.sleep(1)
