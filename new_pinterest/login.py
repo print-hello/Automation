@@ -5,20 +5,26 @@ import json
 from dbconnection import read_one_sql, read_all_sql, write_sql
 import pymysql
 
+
 def login(driver, email, pwd, account_id, cookie, conn):
     login_url = 'https://www.pinterest.com/login/?referrer=home_page'
     login_flag = ''
-    # if cookie != None:
+    # if cookie:
     #     login_state = cookieLogin(driver, cookie)
     # else:
     #     login_state = 0
 
     # if login_state == 0:
     driver.get(login_url)
-    driver.find_element_by_name("id").send_keys(email)
-    driver.find_element_by_name("password").send_keys(pwd)
-    driver.find_element_by_xpath("//form//button").click()
-    time.sleep(5)
+    if driver.page_source.find('This site can’t be reached') > -1:
+        login_state = 2
+        print('Net error!')
+        return login_state
+    else:
+        driver.find_element_by_name("id").send_keys(email)
+        driver.find_element_by_name("password").send_keys(pwd)
+        driver.find_element_by_xpath("//form//button").click()
+        time.sleep(5)
 
     # Determine if the login was successful
     try:

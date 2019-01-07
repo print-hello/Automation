@@ -51,6 +51,8 @@ class Main():
         self.follow_num = 0
         self.pin_self_count = 0
         self.created_boards = 0
+        self.search_words_count = 0
+        self.scroll_num = 0
         self.pinterest_acotion()
 
     def pinterest_acotion(self):
@@ -69,7 +71,7 @@ class Main():
                 write_txt_time()
                 options = webdriver.ChromeOptions()
                 options.add_argument('user-agent="%s"' % self.agent)
-                options.add_argument("--proxy-server=http://localhost:%d" % self.port)
+                options.add_argument("--proxy-server=http://172.16.253.100:%d" % self.port)
                 prefs = {
                     'profile.default_content_setting_values':
                     {'notifications': 2
@@ -101,6 +103,8 @@ class Main():
                     sql = "UPDATE account set login_times=login_times+1 where id=%s" % self.account_id
                 else:
                     sql = "UPDATE account set state=4, login_times=0, action_computer='-' where id=%s" % self.account_id
+                    if login_state == 2:
+                        sql = "UPDATE account set state=2, login_times=0, action_computer='-' where id=%s" % self.account_id
                     try:
                         error_type = self.driver.find_element_by_xpath(
                             '//form//button/span').text
@@ -125,7 +129,7 @@ class Main():
                             2: no account can be found and marked'''))
                         if step_num == 1:
                             pass
-                        if step_num == 2:
+                        elif step_num == 2:
                             sql = 'UPDATE account set state=99, login_times=0 where id=%s' % self.account_id
                             write_sql(self.conn, sql)
                     print('Account log-in failure, will exit the browser!')
@@ -170,10 +174,10 @@ class Main():
         if self.hostname == 'Vinter-Wang':
             sql = 'SELECT * from account where id=132'
         elif self.hostname == 'ChangePassword':
-            sql = "SELECT * from account where action_time<'%s' and state=9 or state=4 and login_times<4 order by action_time asc limit 1" % (
+            sql = "SELECT * from account where port>100 and action_time<'%s' and state=9 or state=4 and login_times<4 order by action_time asc limit 1" % (
                 self.current_time)
         else:
-            sql = "SELECT * from account where action_computer='%s' and action_time<'%s' and state=1 and login_times<4 order by action_time asc limit 1" % (
+            sql = "SELECT * from account where port>100 and upload_computer='-' and action_computer='%s' and action_time<'%s' and state=1 and login_times<4 order by action_time asc limit 1" % (
                 self.hostname, self.current_time)
         result = read_one_sql(self.conn, sql)
         if result:
@@ -186,20 +190,20 @@ class Main():
             self.config_id = result['setting_other']
             self.agent = result['agent']
             if not self.agent:
-                sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                sql = 'SELECT * from user_agent where terminal="computer" and read_time<4 order by RAND() limit 1'
                 agent_in_sql = read_one_sql(self.conn, sql)
                 if agent_in_sql:
                     self.agent = agent_in_sql['user_agent']
                     agent_id = agent_in_sql['Id']
                     sql = 'UPDATE account set agent="%s" where id=%s' % (self.agent, self.account_id)
                     write_sql(self.conn, sql)
-                    sql = 'UPDATE user_agent set state=1 where id=%s' % agent_id
+                    sql = 'UPDATE user_agent set read_time=read_time+1 where id=%s' % agent_id
                     write_sql(self.conn, sql)
             print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
             write_txt_time()
         else:
-            sql = "SELECT * from account where action_computer='-' and action_time<'%s' and state=1 and login_times<4 order by action_time asc limit 1" % (
+            sql = "SELECT * from account where port>100 and upload_computer='-' and action_computer='-' and action_time<'%s' and state=1 and login_times<4 order by action_time asc limit 1" % (
                 self.current_time)
             result = read_one_sql(self.conn, sql)
             if result:
@@ -212,14 +216,14 @@ class Main():
                 self.config_id = result['setting_other']
                 self.agent = result['agent']
                 if not self.agent:
-                    sql = 'SELECT * from user_agent where terminal="computer" and state=0 order by RAND() limit 1'
+                    sql = 'SELECT * from user_agent where terminal="computer" and read_time<4 order by RAND() limit 1'
                     agent_in_sql = read_one_sql(self.conn, sql)
                     if agent_in_sql:
                         self.agent = agent_in_sql['user_agent']
                         agent_id = agent_in_sql['Id']
                         sql = 'UPDATE account set agent="%s" where id=%s' % (self.agent, self.account_id)
                         write_sql(self.conn, sql)
-                        sql = 'UPDATE user_agent set state=1 where id=%s' % agent_id
+                        sql = 'UPDATE user_agent set read_time=read_time+1 where id=%s' % agent_id
                         write_sql(self.conn, sql)
                 print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
@@ -237,9 +241,9 @@ class Main():
             last_update_time = result['last_update_time']
             if str(last_update_time) < self.current_time:
                 sql = '''UPDATE account_count set last_update_time="%s", all_count=
-                    (SELECT count(1) from `account` where state=1) where id=1''' % self.current_time
+                    (SELECT count(1) from `account` where state=1 and port>100) where id=1''' % self.current_time
             else:
-                sql = 'UPDATE account_count set real_time_num=(SELECT count(1) from `account` where state=1) where id=1'
+                sql = 'UPDATE account_count set real_time_num=(SELECT count(1) from `account` where state=1 and port>100) where id=1'
             write_sql(self.conn, sql)
         if all_count - real_time_num > 10:
             os.system('shutdown -r -t 1800')
@@ -263,6 +267,8 @@ class Main():
             self.follow_num = result['follow_num']
             self.pin_self_count = result['pin_self_count']
             self.create_board_num = result['create_board_num']
+            self.search_words_count = result['search_words_count']
+            self.scroll_num = result['scroll_num']
 
     # Access to the home page
     def access_home_page(self):
@@ -565,85 +571,91 @@ class Main():
 
     def click_specific_pin(self):
         print('Start searching for our company images')
-        sql = "SELECT * from search_words where us=1 order by RAND() limit 1"
-        result = read_one_sql(self.conn, sql)
-        if result:
-            search_key_words = result['word']
-            board_name = result['boards']
-            # belong = result['us']
-            try:
-                self.driver.find_element_by_name('q').click()
-                time.sleep(1)
-                self.driver.find_element_by_name('q').clear()
-                time.sleep(1)
-                self.driver.find_element_by_name(
-                    'q').send_keys(search_key_words)
-                time.sleep(1)
-                win32api.keybd_event(13, 0, 0, 0)
-                win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
-            except:
-                pass
-            try:
-                self.driver.find_element_by_name("searchBoxInput").click()
-                time.sleep(1)
-                self.driver.find_element_by_name("searchBoxInput").clear()
-                time.sleep(1)
-                self.driver.find_element_by_name(
-                    "searchBoxInput").send_keys(search_key_words)
-                time.sleep(1)
-                win32api.keybd_event(13, 0, 0, 0)
-                win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
-            except:
-                pass
-            time.sleep(8)      
         sql = "SELECT web_url from follow_url"
         results = read_all_sql(self.conn, sql)
         http_in_sql_list = []
         for res in results:
             http_in_sql = res['web_url']
             http_in_sql_list.append(http_in_sql)
-        pin_count = 0
-        for _ in range(2):
-            try:
-                web_pin_arr = self.driver.find_elements_by_xpath(
-                    "//div[@data-grid-item='true']")
-                # print(len(web_pin_arr))
-            except:
-                time.sleep(3)
-                web_pin_arr = self.driver.find_elements_by_xpath(
-                    "//div[@data-grid-item='true']")
-            for web_pin_one in web_pin_arr:    
+        sql = "SELECT * from search_words where us=1 order by RAND() limit %s" % self.search_words_count
+        key_wrods = read_all_sql(self.conn, sql)
+        if key_wrods:
+            pin_count = 0
+            for key_wrod in key_wrods:
+                search_key_words = key_wrod['word']
+                board_name = key_wrod['boards']
+                # belong = result['us']
                 try:
-                    ActionChains(self.driver).move_to_element(web_pin_one).perform()
-                    time.sleep(3)
+                    self.driver.find_element_by_name('q').click()
+                    time.sleep(1)
+                    self.driver.find_element_by_name('q').clear()
+                    time.sleep(1)
+                    self.driver.find_element_by_name(
+                        'q').send_keys(search_key_words)
+                    time.sleep(1)
+                    win32api.keybd_event(13, 0, 0, 0)
+                    win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
                 except:
                     pass
                 try:
-                    web_pin = self.driver.find_element_by_xpath(
-                        "//a[@class='navigateLink']//div[2]/div")
-                    time.sleep(2)
-                    web_pin_url = web_pin.text
-                    # print(web_pin_url)
-                    if web_pin_url in http_in_sql_list:
-                        pin_count += 1
-                        time.sleep(1)
-                        specific_pin_url = web_pin_one.find_element_by_xpath(
-                            './/div[@class="pinWrapper"]/div/a').get_attribute('href')
-                        time.sleep(1)
-                        specific_pin_pic_url = web_pin_one.find_element_by_xpath(
-                            './/div[@class="pinWrapper"]//img').get_attribute('src')
-                        self.save_pic(
-                            board_name=board_name,belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
-                except Exception as e:
+                    self.driver.find_element_by_name("searchBoxInput").click()
+                    time.sleep(1)
+                    self.driver.find_element_by_name("searchBoxInput").clear()
+                    time.sleep(1)
+                    self.driver.find_element_by_name(
+                        "searchBoxInput").send_keys(search_key_words)
+                    time.sleep(1)
+                    win32api.keybd_event(13, 0, 0, 0)
+                    win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
+                except:
                     pass
+                time.sleep(8)
+                for _ in range(self.scroll_num):
+                    try:
+                        web_pin_arr = self.driver.find_elements_by_xpath(
+                            "//div[@data-grid-item='true']")
+                        # print(len(web_pin_arr))
+                    except:
+                        time.sleep(3)
+                        web_pin_arr = self.driver.find_elements_by_xpath(
+                            "//div[@data-grid-item='true']")
+                    for web_pin_one in web_pin_arr:
+                        try:
+                            ActionChains(self.driver).move_to_element(
+                                web_pin_one).perform()
+                            time.sleep(3)
+                        except:
+                            pass
+                        try:
+                            web_pin = self.driver.find_element_by_xpath(
+                                "//a[@class='navigateLink']//div[2]/div")
+                            time.sleep(2)
+                            web_pin_url = web_pin.text
+                            # print(web_pin_url)
+                            if web_pin_url in http_in_sql_list:
+                                time.sleep(1)
+                                specific_pin_url = web_pin_one.find_element_by_xpath(
+                                    './/div[@class="pinWrapper"]/div/a').get_attribute('href')
+                                time.sleep(1)
+                                specific_pin_pic_url = web_pin_one.find_element_by_xpath(
+                                    './/div[@class="pinWrapper"]//img').get_attribute('src')
+                                self.save_pic(
+                                    board_name=board_name, belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
+                                pin_count += 1
+                        except Exception as e:
+                            pass
+                        if pin_count == self.pin_self_count:
+                            break
+                    if pin_count == self.pin_self_count:
+                        break
+                    else:
+                        win32api.keybd_event(35, 0, 0, 0)
+                        win32api.keybd_event(
+                            35, 0, win32con.KEYEVENTF_KEYUP, 0)
+                        time.sleep(5)
+                        write_txt_time()
                 if pin_count == self.pin_self_count:
                     break
-            if pin_count == self.pin_self_count:
-                break
-            win32api.keybd_event(35, 0, 0, 0)
-            win32api.keybd_event(35, 0, win32con.KEYEVENTF_KEYUP, 0)
-            time.sleep(5)
-            write_txt_time()
 
     def follow(self):
         print('Turn on the follow function, count:', self.follow_num)
