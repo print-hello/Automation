@@ -9,7 +9,7 @@ import pymysql
 def login(driver, email, pwd, account_id, cookie, conn):
     login_url = 'https://www.pinterest.com/login/?referrer=home_page'
     login_flag = ''
-    # if cookie != None:
+    # if cookie:
     #     login_state = cookieLogin(driver, cookie)
     # else:
     #     login_state = 0
