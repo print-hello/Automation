@@ -1,0 +1,4 @@
+email=treasurerpfne@gmail.com
+pwd=oUW7hBLC
+database=data_content_993
+pic_num=993
