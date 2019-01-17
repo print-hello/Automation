@@ -1,0 +1,4 @@
+email=
+pwd=
+database=data_content_993
+pic_num=993
