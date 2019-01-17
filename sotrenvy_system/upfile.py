@@ -24,7 +24,7 @@ def select_upfilename_firefox(driver, filepath):
         "//div[@id='fileUploader']//div//div[2]").click()
     time.sleep(1)
     # win32gui
-    dialog = win32gui.FindWindow('#32770', u'文件上传')
+    dialog = win32gui.FindWindow('#32770', u'Open')
     ComboBoxEx32 = win32gui.FindWindowEx(dialog, 0, 'ComboBoxEx32', None)
     ComboBox = win32gui.FindWindowEx(ComboBoxEx32, 0, 'ComboBox', None)
     Edit = win32gui.FindWindowEx(ComboBox, 0, 'Edit', None)
