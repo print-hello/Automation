@@ -40,20 +40,20 @@ def txt_to_db(conn):
 
 def xls_to_db(conn):
     cursor = conn.cursor()
-    data = xlrd.open_workbook('storenvy12.7.xls')
+    data = xlrd.open_workbook('pin账号.xls')
     table = data.sheets()[0]
     nrows = table.nrows
     num = 1
     for i in range(nrows):
-        if i < 15:
+        if i < 1:
             continue
         row = table.row_values(i)
-        store_name = row[1].split('.')[0]
-        print('store_id', row[2], 'email', row[3],
-              'store_pwd', row[7], 'email_pwd', row[8])
-        url = 'http://www.' + row[1]
+        mac_adress = row[5].replace(':', '').strip()
+        print('email', row[1], 'pwd', row[2], 'email_pwd', row[7],
+              'domain', row[4], 'mac_adress', mac_adress, 'vpn', row[6])
         cursor.execute(
-            'UPDATE storenvy set email=%s, store_pwd=%s, email_pwd=%s where store_id=%s', (row[3], row[7], row[8], row[2]))
+            'INSERT INTO account (email, pw, email_pwd, domain, mac_adress, vpn, action_computer, belong) values (%s, %s, %s, %s, %s, %s, %s, %s)',
+            (row[1], row[2], row[7], row[4], mac_adress, row[6], 'chensm' + str(num), 'chensm'))
         conn.commit()
         if num == 1:
             input()
@@ -64,12 +64,16 @@ def xls_to_db(conn):
 
 def choice_text():
     conn = pymysql.connect(host='localhost', port=3306,
-                           user='root', password='123456',
+                           user='root', password='1234562',
                            db='new_pin', charset='utf8mb4',
                            cursorclass=pymysql.cursors.DictCursor)
     conn1 = pymysql.connect(host='localhost', port=3306,
                             user='root', password='123456',
                             db='storenvy', charset='utf8mb4',
+                            cursorclass=pymysql.cursors.DictCursor)
+    conn2 = pymysql.connect(host='localhost', port=3306,
+                            user='root', password='123456',
+                            db='pin_login_system', charset='utf8mb4',
                             cursorclass=pymysql.cursors.DictCursor)
     choice_num = int(input('''选择读取的文本格式！
 1: csv
