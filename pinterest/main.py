@@ -26,9 +26,13 @@ class Main():
                                     db='pinterest', charset='utf8mb4',
                                     cursorclass=pymysql.cursors.DictCursor)
         self.conn1 = pymysql.connect(host='localhost', port=3306,
-                                    user='root', password='******',
-                                    db='vpn', charset='utf8mb4',
-                                    cursorclass=pymysql.cursors.DictCursor)
+                                     user='root', password='******',
+                                     db='vpn', charset='utf8mb4',
+                                     cursorclass=pymysql.cursors.DictCursor)
+        self.conn2 = pymysql.connect(host='localhost', port=3306,
+                                     user='root', password='******',
+                                     db='pin_follow', charset='utf8mb4',
+                                     cursorclass=pymysql.cursors.DictCursor)
         self.driver = ''
         self.hostname = socket.gethostname()
         self.current_time = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -40,6 +44,9 @@ class Main():
         self.account_id = 0
         self.success_num = 0
         self.config_id = 0
+        self.account_group = 0
+        self.save_pic_from_homepage_control = 0
+        self.click_specific_pin_control = 0
         # Try to locate the home element. If there is off, you don't need to do all kinds of pop-ups
         self.login_state_flag = ''
         # Steps and params to control
@@ -56,6 +63,7 @@ class Main():
         self.pin_self_count = 0
         self.search_words_count = 0
         self.scroll_num = 0
+        self.pin_count = 0
         self.pinterest_acotion()
 
     def pinterest_acotion(self):
@@ -150,10 +158,12 @@ class Main():
                     #     self.upload_pic()
                     if self.random_browsing_control == 1:
                         self.random_browsing()
-                    if self.pin_self_count > 0:
-                        self.click_specific_pin()
                     if self.follow_num > 0:
                         self.follow()
+                    if self.click_specific_pin_control == 1:
+                        self.click_specific_pin()
+                    if self.save_pic_from_homepage_control == 1:
+                        self.save_pic_from_homepage()
                     print('End of account processing...')
                     self.driver.quit()
                     sql = "UPDATE account set state=1, login_times=0, action_time='%s', action_computer='-' where id=%s" % (
@@ -188,10 +198,11 @@ class Main():
             self.vpn = result['vpn']
             self.cookie = result['cookie']
             self.config_id = result['setting_other']
+            self.account_group = result['account_group']
             self.agent = result['agent']
             if not self.agent:
                 sql = 'SELECT * from user_agent where terminal="computer" and read_time<4 order by RAND() limit 1'
-                agent_in_sql = read_one_sql(self.conn, sql)
+                agent_in_sql = read_one_sql(self.conn2, sql)
                 if agent_in_sql:
                     self.agent = agent_in_sql['user_agent']
                     agent_id = agent_in_sql['Id']
@@ -199,7 +210,7 @@ class Main():
                         self.agent, self.account_id)
                     write_sql(self.conn, sql)
                     sql = 'UPDATE user_agent set read_time=read_time+1 where id=%s' % agent_id
-                    write_sql(self.conn, sql)
+                    write_sql(self.conn2, sql)
             print("Start account processing:", "ID:",
                   self.account_id, "Email:", self.email)
             write_txt_time()
@@ -214,10 +225,11 @@ class Main():
                 self.vpn = result['vpn']
                 self.cookie = result['cookie']
                 self.config_id = result['setting_other']
+                self.account_group = result['account_group']
                 self.agent = result['agent']
                 if not self.agent:
                     sql = 'SELECT * from user_agent where terminal="computer" and read_time<4 order by RAND() limit 1'
-                    agent_in_sql = read_one_sql(self.conn, sql)
+                    agent_in_sql = read_one_sql(self.conn2, sql)
                     if agent_in_sql:
                         self.agent = agent_in_sql['user_agent']
                         agent_id = agent_in_sql['Id']
@@ -225,7 +237,7 @@ class Main():
                             self.agent, self.account_id)
                         write_sql(self.conn, sql)
                         sql = 'UPDATE user_agent set read_time=read_time+1 where id=%s' % agent_id
-                        write_sql(self.conn, sql)
+                        write_sql(self.conn2, sql)
                 print("Start account processing:", "ID:",
                       self.account_id, "Email:", self.email)
                 sql = "UPDATE account set action_computer='%s' where id=%s" % (
@@ -241,6 +253,15 @@ class Main():
             real_time_num = result['real_time_num']
             last_update_time = result['last_update_time']
             if str(last_update_time) < self.current_time:
+                recovery_mode = 'UPDATE account set state=1 where state=4'
+                write_sql(self.conn, recovery_mode)
+                change_group = 'UPDATE follow_url set account_group=account_group+1 where for_config=10'
+                write_sql(self.conn2, change_group)
+                all_group = 'SELECT count(-1) from follow_url where for_config=10'
+                all_group_count = read_one_sql(
+                    self.conn2, all_group)['count(-1)']
+                debug_group = 'UPDATE follow_url set account_group=1 where account_group>%s' % all_group_count
+                write_sql(self.conn2, debug_group)
                 sql = '''UPDATE account_count set last_update_time="%s", all_count=
                     (SELECT count(1) from `account` where state=1) where id=1''' % self.current_time
             else:
@@ -269,6 +290,8 @@ class Main():
             self.pin_self_count = result['pin_self_count']
             self.search_words_count = result['search_words_count']
             self.scroll_num = result['scroll_num']
+            self.save_pic_from_homepage_control = result['save_pic_from_homepage_control']
+            self.click_specific_pin_control = result['click_specific_pin_control']
 
     # Access to the home page
     def access_home_page(self):
@@ -466,24 +489,25 @@ class Main():
             print('The picture has been saved.')
         else:
             if belong == 2:
-                sql = '''SELECT * from other_pin_history where pin_pic_url="%s" or pin_url="%s" and account_id=%s''' % (
-                    pin_pic_url, pin_url, self.account_id)
+                sql = '''SELECT * from other_pin_history where pin_pic_url="%s" and account_id=%s''' % (
+                    pin_pic_url, self.account_id)
             elif belong == 1:
-                sql = '''SELECT * from pin_history where pin_pic_url="%s" or pin_url="%s" and account_id=%s''' % (
-                    pin_pic_url, pin_url, self.account_id)
+                sql = '''SELECT * from pin_history where pin_pic_url="%s" and account_id=%s''' % (
+                    pin_pic_url, self.account_id)
             result = read_one_sql(self.conn, sql)
             if result:
                 print('The picture has been saved.')
             else:
+                time.sleep(3)
                 try:
                     self.driver.find_element_by_xpath(
                         '//div[@data-test-id="boardSelectionDropdown"]').click()
                     time.sleep(5)
                     self.driver.find_element_by_xpath(
                         "//input[@id='pickerSearchField']").send_keys(board_name)
-                    time.sleep(2)
+                    time.sleep(5)
                 except Exception as e:
-                    pass
+                    print(e)
                 try:
                     board_selector = self.driver.find_elements_by_xpath(
                         '//div[@data-test-id="board-picker-section"]//div[2]/div')
@@ -521,6 +545,7 @@ class Main():
                 cur.execute(sql, params)
                 self.conn.commit()
                 cur.close()
+                self.pin_count += 1
                 time.sleep(3)
         write_txt_time()
 
@@ -545,16 +570,16 @@ class Main():
 
     def click_specific_pin(self):
         print('Start searching for our company images')
-        sql = "SELECT web_url from follow_url"
-        results = read_all_sql(self.conn, sql)
+        sql = "SELECT web_url from follow_url where for_config=%s" % self.config_id
+        results = read_all_sql(self.conn2, sql)
         http_in_sql_list = []
         for res in results:
             http_in_sql = res['web_url']
             http_in_sql_list.append(http_in_sql)
+        # print(http_in_sql_list)
         sql = "SELECT * from search_words where us=1 order by RAND() limit %s" % self.search_words_count
-        key_wrods = read_all_sql(self.conn, sql)
+        key_wrods = read_all_sql(self.conn2, sql)
         if key_wrods:
-            pin_count = 0
             for key_wrod in key_wrods:
                 search_key_words = key_wrod['word']
                 board_name = key_wrod['boards']
@@ -603,7 +628,7 @@ class Main():
                         try:
                             web_pin = self.driver.find_element_by_xpath(
                                 "//a[@class='navigateLink']//div[2]/div")
-                            time.sleep(2)
+                            time.sleep(3)
                             web_pin_url = web_pin.text
                             # print(web_pin_url)
                             if web_pin_url in http_in_sql_list:
@@ -615,12 +640,11 @@ class Main():
                                     './/div[@class="pinWrapper"]//img').get_attribute('src')
                                 self.save_pic(
                                     board_name=board_name, belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
-                                pin_count += 1
                         except Exception as e:
                             pass
-                        if pin_count == self.pin_self_count:
+                        if self.pin_count == self.pin_self_count:
                             break
-                    if pin_count == self.pin_self_count:
+                    if self.pin_count == self.pin_self_count:
                         break
                     else:
                         win32api.keybd_event(35, 0, 0, 0)
@@ -628,43 +652,124 @@ class Main():
                             35, 0, win32con.KEYEVENTF_KEYUP, 0)
                         time.sleep(5)
                         write_txt_time()
-                if pin_count == self.pin_self_count:
+                if self.pin_count == self.pin_self_count:
                     break
 
     def follow(self):
         print('Turn on the follow function, count:', self.follow_num)
-        sql = '''SELECT * from follow_url order by RAND() limit %s''' % self.follow_num
-        results = read_all_sql(self.conn, sql)
+        sql = '''SELECT * from follow_url where for_config=10 limit %s''' % self.follow_num
+        results = read_all_sql(self.conn2, sql)
         if results:
             for res in results:
+                web_url_id = res['Id']
+                web_url = res['web_url']
                 home_url = res['home_url']
-                try:
-                    self.driver.get(home_url)
-                except:
-                    pass
+                sql = 'SELECT * from follow_history where user_id=%s and follow_account="%s"' % (
+                    web_url_id, self.email)
+                judge_exist = read_one_sql(self.conn2, sql)
+                if judge_exist:
+                    print('Already followed!')
+                else:
+                    try:
+                        self.driver.get(home_url)
+                    except:
+                        pass
+                    time.sleep(5)
+                    try:
+                        follow_state = self.driver.find_element_by_xpath(
+                            '//div[@class="fixedHeader"]//div[3]//div[2]/button/div').text
+                        if follow_state == 'Follow':
+                            self.driver.find_element_by_xpath(
+                                '//div[@class="fixedHeader"]//div[3]//div[2]/button').click()
+                            time.sleep(1)
+                            # self.driver.execute_script('window.scrollTo(1, 4000)')
+                            # time.sleep(3)
+                    except:
+                        pass
+                    try:
+                        follow_state = self.driver.find_element_by_xpath(
+                            '//div[@class="CreatorFollowButton step0"]//div[2]/div').text
+                        if follow_state == 'Follow':
+                            self.driver.find_element_by_xpath(
+                                '//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
+                            time.sleep(1)
+                    except:
+                        pass
+                    cursor = self.conn2.cursor()
+                    cursor.execute('INSERT INTO follow_history (user_id, user, user_homepage, follow_account) values (%s, %s, %s, %s)', (
+                        web_url_id, web_url, home_url, self.email))
+                    self.conn2.commit()
+                    cursor.close()
+        write_txt_time()
+
+
+    def save_pic_from_homepage(self):
+        sql = "SELECT * from follow_url where for_config=10 and account_group=%s" % self.account_group
+        result = read_one_sql(self.conn2, sql)
+        if result:
+            http_in_sql = result['web_url']
+            home_url = result['home_url']
+            home_url_split = home_url.split('/')[-1]
+        try:
+            self.driver.find_element_by_xpath(
+                '//div[@aria-label="Pins from people you follow"]/a/div').click()
+            time.sleep(5)
+            self.driver.find_element_by_xpath(
+                '//button[@aria-label="Find new people to follow"]').click()
+        except:
+            self.driver.find_element_by_xpath(
+                '//div[@data-test-id="button-container"]/div[2]').click()
+        time.sleep(5)
+        all_following = self.driver.find_elements_by_xpath(
+            '//div[@data-grid-item="true"]')
+        for one_following in all_following:
+            following_homepage = one_following.find_element_by_xpath(
+                './div/div/div/a').get_attribute('href')
+            following_homepage_split = following_homepage.split('/')[-1]
+            if following_homepage_split == home_url_split:
+                one_following.click()
                 time.sleep(5)
-                try:
-                    follow_state = self.driver.find_element_by_xpath(
-                        '//div[@class="fixedHeader"]//div[3]//div[2]/button/div').text
-                    if follow_state == 'Follow':
-                        self.driver.find_element_by_xpath(
-                            '//div[@class="fixedHeader"]//div[3]//div[2]/button').click()
-                        time.sleep(1)
-                        self.driver.execute_script('window.scrollTo(1, 4000)')
-                        time.sleep(3)
-                except:
-                    pass
-                try:
-                    follow_state = self.driver.find_element_by_xpath(
-                        '//div[@class="CreatorFollowButton step0"]//div[2]/div').text
-                    if follow_state == 'Follow':
-                        self.driver.find_element_by_xpath(
-                            '//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
-                        time.sleep(1)
-                        self.driver.execute_script('window.scrollTo(1, 4000)')
-                        time.sleep(3)
-                except:
-                    pass
+                break
+        windows = self.driver.window_handles
+        self.driver.switch_to.window(windows[1])
+        self.driver.execute_script('window.scrollTo(1, 500)')
+        time.sleep(5)
+        try:
+            web_pin_arr = self.driver.find_elements_by_xpath(
+                "//div[@data-grid-item='true']")
+        except:
+            time.sleep(3)
+            web_pin_arr = self.driver.find_elements_by_xpath(
+                "//div[@data-grid-item='true']")
+        pin_count = 0
+        for web_pin_one in web_pin_arr:
+            try:
+                ActionChains(self.driver).move_to_element(
+                    web_pin_one).perform()
+                time.sleep(3)
+            except:
+                pass
+            try:
+                web_pin = self.driver.find_element_by_xpath(
+                    "//a[@class='navigateLink']//div[2]/div")
+                time.sleep(2)
+                web_pin_url = web_pin.text
+                if web_pin_url == http_in_sql:
+                    time.sleep(1)
+                    specific_pin_url = web_pin_one.find_element_by_xpath(
+                        './/div[@class="pinWrapper"]/div/a').get_attribute('href')
+                    time.sleep(1)
+                    specific_pin_pic_url = web_pin_one.find_element_by_xpath(
+                        './/div[@class="pinWrapper"]//img').get_attribute('src')
+                    board_name = 'dress'
+                    self.save_pic(
+                        board_name=board_name, belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
+                    time.sleep(3)
+                    pin_count += 1
+            except Exception as e:
+                pass
+            if pin_count == self.pin_self_count:
+                break
         write_txt_time()
 
 

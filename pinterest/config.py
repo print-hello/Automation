@@ -1,7 +1,7 @@
 import time
 import subprocess
 import requests
-from dbconnection import read_all_sql
+from dbconnection import read_one_sql, read_all_sql
 
 def check_vpn():
     p = subprocess.Popen('cmd.exe /c' + 'F:\\pinterest\\boot\\checkvpn.bat abc', 
@@ -28,7 +28,7 @@ def rasphone_vpn():
     p.wait()
 
 def get_out_ip():
-    url = "http://2018.ip138.com/ic.asp"
+    url = "http://2019.ip138.com/ic.asp"
     r = requests.get(url)
     txt = r.text
     ip = txt[txt.find("[") + 1: txt.find("]")]
@@ -45,16 +45,15 @@ def write_txt_time():
 
 def connect_vpn(conn, vpn):
     sql = "SELECT account, pwd, server, ip from vpn where account='%s'" % vpn
-    results = read_all_sql(conn, sql)
-    if results:
-        for row in results:
-            vpn = row['account']
-            vpn_pwd = row['pwd']
-            vpn_ip = row['ip']
-            vpn_server = row['server'].replace('.lianstone.net', '')
-            with open("F:\\pinterest\\boot\\vpn.txt", "w", encoding='utf-8') as fp:
-                print(vpn_server + "," + vpn + "," + vpn_pwd)
-                fp.write(vpn_server + "," + vpn + "," + vpn_pwd)
+    result = read_one_sql(conn, sql)
+    if result:
+        vpn = result['account']
+        vpn_pwd = result['pwd']
+        vpn_ip = result['ip']
+        vpn_server = result['server'].replace('.lianstone.net', '')
+        with open("F:\\pinterest\\boot\\vpn.txt", "w", encoding='utf-8') as fp:
+            print(vpn_server + "," + vpn + "," + vpn_pwd)
+            fp.write(vpn_server + "," + vpn + "," + vpn_pwd)
     else:
         print(
             'No corresponding VPN account has been detected and the system is being shut down...')
