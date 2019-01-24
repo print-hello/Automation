@@ -63,7 +63,6 @@ class Main():
         self.pin_self_count = 0
         self.search_words_count = 0
         self.scroll_num = 0
-        self.pin_count = 0
         self.pinterest_acotion()
 
     def pinterest_acotion(self):
@@ -545,7 +544,6 @@ class Main():
                 cur.execute(sql, params)
                 self.conn.commit()
                 cur.close()
-                self.pin_count += 1
                 time.sleep(3)
         write_txt_time()
 
@@ -580,6 +578,7 @@ class Main():
         sql = "SELECT * from search_words where us=1 order by RAND() limit %s" % self.search_words_count
         key_wrods = read_all_sql(self.conn2, sql)
         if key_wrods:
+            pin_count = 0
             for key_wrod in key_wrods:
                 search_key_words = key_wrod['word']
                 board_name = key_wrod['boards']
@@ -640,11 +639,12 @@ class Main():
                                     './/div[@class="pinWrapper"]//img').get_attribute('src')
                                 self.save_pic(
                                     board_name=board_name, belong=1, specific_pin_url=specific_pin_url, specific_pin_pic_url=specific_pin_pic_url)
+                                pin_count += 1
                         except Exception as e:
                             pass
-                        if self.pin_count == self.pin_self_count:
+                        if pin_count == self.pin_self_count:
                             break
-                    if self.pin_count == self.pin_self_count:
+                    if pin_count == self.pin_self_count:
                         break
                     else:
                         win32api.keybd_event(35, 0, 0, 0)
@@ -652,7 +652,7 @@ class Main():
                             35, 0, win32con.KEYEVENTF_KEYUP, 0)
                         time.sleep(5)
                         write_txt_time()
-                if self.pin_count == self.pin_self_count:
+                if pin_count == self.pin_self_count:
                     break
 
     def follow(self):
