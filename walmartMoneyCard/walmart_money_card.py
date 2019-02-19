@@ -6,6 +6,7 @@ from selenium.webdriver.support.select import Select
 import socket
 import subprocess
 import datetime
+from dbconnection import fetch_one_sql, fetch_all_sql, commit_sql
 
 
 def register_account():
@@ -14,49 +15,42 @@ def register_account():
         flow_flag = 1
         get_msg_success = 0
         hostname = socket.gethostname()
-        conn = pymysql.connect(host='localhost', port=3306,
+        conn = pymysql.connect(host='172.16.253.100', port=3306,
                                user='root', password='123456',
                                db='walmartmoneycard', charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor)
-        cursor = conn.cursor()
-        # Get email
-        cursor.execute(
-            'SELECT * from email_info where emailIsUsed=0 and register_computer=%s', hostname)
-        get_email = cursor.fetchone()
+        # # Get email
+        sql = 'SELECT * from email_info where emailIsUsed=0 and register_computer=%s'
+        get_email = fetch_one_sql(conn, sql, hostname)
         if get_email:
             email_id = get_email['Id']
             email = get_email['email']
         else:
-            cursor.execute(
-                'SELECT * from email_info where emailIsUsed=0 and register_computer="-" order by id limit 1')
-            get_email = cursor.fetchone()
+            sql = 'SELECT * from email_info where emailIsUsed=0 and register_computer="-" order by id limit 1'
+            get_email = fetch_one_sql(conn, sql)
             if get_email:
                 email_id = get_email['Id']
                 email = get_email['email']
-                cursor.execute('UPDATE email_info set register_computer=%s where email=%s', (
-                    hostname, email))
-                conn.commit()
+                sql = 'UPDATE email_info set register_computer=%s where email=%s'
+                commit_sql(conn, sql, (hostname, email))
             else:
                 flow_flag = 0
         # Get register account message
         if flow_flag == 1:
             while True:
-                cursor.execute(
-                    'SELECT * from register_info where userInfoIsUsed=0 and email_id=%s and read_num<4 order by id limit 1', email_id)
-                result = cursor.fetchone()
+                sql = 'SELECT * from register_info where userInfoIsUsed=0 and email_id=%s and read_num<4 order by id limit 1'
+                result = fetch_one_sql(conn, sql, email_id)
                 if result:
                     get_msg_success = 1
                 else:
-                    cursor.execute(
-                        'SELECT * from register_info where userInfoIsUsed=0 and read_num<4 order by id limit 1')
-                    result = cursor.fetchone()
+                    sql = 'SELECT * from register_info where userInfoIsUsed=0 and read_num<4 order by id limit 1'
+                    result = fetch_one_sql(conn, sql)
                     if result:
                         get_msg_success = 1
                 if get_msg_success == 1:
                     register_id = result['Id']
-                    cursor.execute(
-                        'UPDATE register_info set userInfoIsUsed=1, email_id=%s, read_num=read_num+1 where id=%s', (email_id, register_id))
-                    conn.commit()
+                    sql = 'UPDATE register_info set userInfoIsUsed=1, email_id=%s, read_num=read_num+1 where id=%s'
+                    commit_sql(conn, sql, (email_id, register_id))
                     firstname = result['firstname']
                     lastname = result['lastname']
                     address = result['address']
@@ -109,9 +103,8 @@ def register_account():
                     page_1 = driver.current_url
                     if page_1 != 'https://www.walmartmoneycard.com/getacardnow/direct-deposit-enrollment':
                         print('Error!')
-                        cursor.execute(
-                            'UPDATE register_info set userInfoIsUsed=1, email_id=0 where id=%s', register_id)
-                        conn.commit()
+                        sql = 'UPDATE register_info set userInfoIsUsed=1, email_id=0 where id=%s'
+                        commit_sql(conn, sql, register_id)
                         driver.quit()
                         time.sleep(3)
                         continue
@@ -121,9 +114,9 @@ def register_account():
                     bankRoutingNumber = all_info_1[0].text
                     directDepositAccountNumber = all_info_1[1].text
                     print(bankRoutingNumber, directDepositAccountNumber)
-                    cursor.execute('UPDATE email_info set bankRoutingNumber=%s, directDepositAccountNumber=%s where email=%s', (
-                        bankRoutingNumber, directDepositAccountNumber, email))
-                    conn.commit()
+                    sql = 'UPDATE email_info set bankRoutingNumber=%s, directDepositAccountNumber=%s where email=%s'
+                    commit_sql(conn, sql, (bankRoutingNumber,
+                                           directDepositAccountNumber, email))
                     driver.find_element_by_xpath(
                         '//button[@id="btn-ctn"]').click()
                     time.sleep(5)
@@ -133,9 +126,9 @@ def register_account():
                     expirationData = all_info_2[1].text
                     securityCode = all_info_2[2].text
                     print(temporaryCardNumber, expirationData, securityCode)
-                    cursor.execute('UPDATE email_info set temporaryCardNumber=%s, expirationData=%s, securityCode=%s where email=%s', (
-                        temporaryCardNumber, expirationData, securityCode, email))
-                    conn.commit()
+                    sql = 'UPDATE email_info set temporaryCardNumber=%s, expirationData=%s, securityCode=%s where email=%s'
+                    commit_sql(conn, sql, (temporaryCardNumber,
+                                           expirationData, securityCode, email))
                     driver.find_element_by_id('dynamicData').click()
                     time.sleep(3)
                     driver.find_element_by_xpath(
@@ -175,9 +168,9 @@ def register_account():
                     time.sleep(1)
                     driver.find_element_by_id('TxtUserID').send_keys(user_id)
                 try:
-                    cursor.execute('UPDATE email_info set emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, answer_2=%s, answer_3=%s, create_time=%s where email=%s', (
-                        register_id, user_id, user_pwd, answer_1, answer_2, answer_3, current_time, email))
-                    conn.commit()
+                    sql = 'UPDATE email_info set emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, answer_2=%s, answer_3=%s, create_time=%s where email=%s'
+                    commit_sql(conn, sql, (register_id, user_id, user_pwd,
+                                           answer_1, answer_2, answer_3, current_time, email))
                 except Exception as e:
                     with open('%s.txt' % email, 'w', encoding='utf-8') as fp:
                         fp.write(email, register_id, user_id, user_pwd,
@@ -186,7 +179,6 @@ def register_account():
                 time.sleep(3)
                 driver.quit()
                 time.sleep(10)
-        cursor.close()
         conn.close()
 
 
