@@ -13,18 +13,13 @@ def main():
     while True:
         step_flag = 1
         conn = pymysql.connect(host='localhost', port=3306,
-                               user='root', password='******',
+                               user='root', password='123456',
                                db='walmartmoneycard', charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor)
         conn1 = pymysql.connect(host='localhost', port=3306,
-                                user='root', password='******',
+                                user='root', password='123456',
                                 db='vpn', charset='utf8mb4',
                                 cursorclass=pymysql.cursors.DictCursor)
-        sql = 'SELECT account from vpn where id>2421 and id<4730 order by RAND() limit 1'
-        result = fetch_one_sql(conn1, sql)
-        if result:
-            vpn = result['account']
-        connect_vpn(conn1, vpn)
         sql = 'SELECT id, email, email_pwd from email_info where computer=%s and new_pwd is NULL order by id limit 1'
         result = fetch_one_sql(conn, sql, hostname)
         if result:
@@ -43,6 +38,11 @@ def main():
         if step_flag == 1:
             email = result['email']
             print(email)
+            sql = 'SELECT account from vpn where id>2421 and id<4730 order by RAND() limit 1'
+            vpn_result = fetch_one_sql(conn1, sql)
+            if vpn_result:
+                vpn = vpn_result['account']
+            connect_vpn(conn1, vpn)
             pwd = result['email_pwd']
             options = webdriver.ChromeOptions()
             options.add_argument('disable-infobars')
@@ -74,7 +74,7 @@ def main():
                 driver.quit()
                 continue
             try:
-                element = WebDriverWait(driver, 5).until(
+                element = WebDriverWait(driver, 3).until(
                     EC.presence_of_element_located((By.XPATH, '//button[@name="index"]')))
                 if element:
                     print('Need verification, skip!')
@@ -84,12 +84,12 @@ def main():
             except Exception as e:
                 pass
             try:
-                driver.find_element_by_xpath(
-                    '//button[@title="Maybe later"]').click()
+                driver.find_element_by_xpath('//span[text()="Done"]').click()
             except Exception as e:
                 pass
             try:
-                driver.find_element_by_xpath('//span[text()="Done"]').click()
+                driver.find_element_by_xpath(
+                    '//button[@title="Maybe later"]').click()
             except Exception as e:
                 pass
             try:
