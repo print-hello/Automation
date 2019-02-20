@@ -1,22 +1,46 @@
 import pymysql
 import time
+import socket
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
+from config import connect_vpn
 
 
 def main():
+    hostname = socket.gethostname()
     while True:
         step_flag = 1
-        conn = pymysql.connect(host='172.16.253.100', port=3306,
-                               user='root', password='123456',
+        conn = pymysql.connect(host='localhost', port=3306,
+                               user='root', password='******',
                                db='walmartmoneycard', charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor)
-        sql = 'SELECT id, email, email_pwd from email_info where new_pwd is NULL order by id limit 1'
-        result = fetch_one_sql(conn, sql)
+        conn1 = pymysql.connect(host='localhost', port=3306,
+                                user='root', password='******',
+                                db='vpn', charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+        sql = 'SELECT account from vpn where id>2421 and id<4730 order by RAND() limit 1'
+        result = fetch_one_sql(conn1, sql)
+        if result:
+            vpn = result['account']
+        connect_vpn(conn1, vpn)
+        sql = 'SELECT id, email, email_pwd from email_info where computer=%s and new_pwd is NULL order by id limit 1'
+        result = fetch_one_sql(conn, sql, hostname)
         if result:
             email_id = result['id']
+        else:
+            sql = 'SELECT id, email, email_pwd from email_info where computer="-" and new_pwd is NULL order by id limit 1'
+            result = fetch_one_sql(conn, sql)
+            if result:
+                email_id = result['id']
+                sql = 'UPDATE email_info set computer=%s where id=%s'
+                commit_sql(conn, sql, (hostname, email_id))
+            else:
+                step_flag = 0
+                print('Not data!')
+                break
+        if step_flag == 1:
             email = result['email']
             print(email)
             pwd = result['email_pwd']
@@ -49,7 +73,16 @@ def main():
             if step_flag == 0:
                 driver.quit()
                 continue
-            time.sleep(5)
+            try:
+                element = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, '//button[@name="index"]')))
+                if element:
+                    print('Need verification, skip!')
+                    driver.quit()
+                    sql = 'UPDATE email_info set new_pwd="needVerification", computer="-" where id=%s'
+                    commit_sql(conn, sql, email_id)
+            except Exception as e:
+                pass
             try:
                 driver.find_element_by_xpath(
                     '//button[@title="Maybe later"]').click()
@@ -92,7 +125,7 @@ def main():
             if step_flag == 0:
                 driver.quit()
                 continue
-            new_pwd = pwd.strip() + '2019'
+            new_pwd = pwd.strip() + 'print'
             try:
                 element = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.ID, 'cpwd-password')))
@@ -103,7 +136,7 @@ def main():
                 time.sleep(1)
                 driver.find_element_by_xpath(
                     '//input[@value="Continue"]').click()
-                sql = 'UPDATE email_info set new_pwd=%s where id=%s'
+                sql = 'UPDATE email_info set new_pwd=%s, computer="-" where id=%s'
                 commit_sql(conn, sql, (new_pwd, email_id))
                 print('Change password success!')
             except Exception as e:
