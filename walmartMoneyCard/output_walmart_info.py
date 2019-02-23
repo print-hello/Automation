@@ -4,17 +4,21 @@ import os
 from dbconnection import fetch_one_sql, fetch_all_sql, commit_sql
 
 
-os.makedirs('./walmartCardInfo/', exist_ok=True)
 current_time = datetime.datetime.now().strftime("%Y-%m-%d")
-conn = pymysql.connect(host='172.16.253.100', port=3306,
+os.makedirs('./walmartCardInfo%s/' % current_time, exist_ok=True)
+conn = pymysql.connect(host='localhost', port=3306,
                        user='root', password='123456',
                        db='walmartmoneycard', charset='utf8mb4',
                        cursorclass=pymysql.cursors.DictCursor)
-sql = 'SELECT * from email_info where emailIsUsed=1 and is_output=0'
+sql = 'SELECT * from email_info where id>994 and emailIsUsed=1 and is_output=0'
 all_info = fetch_all_sql(conn, sql)
 for echo in all_info:
+    email_id = echo['id']
     email = echo['email']
-    email_pwd = echo['email_pwd']
+    email_pwd = echo['new_pwd']
+    phone_num = echo['phone_num']
+    recovery_email = echo['recovery_email']
+    recovery_email_pwd = echo['recovery_email_pwd']
     user = echo['user']
     user_pwd = echo['user_pwd']
     bankRoutingNumber = echo['bankRoutingNumber']
@@ -40,11 +44,13 @@ for echo in all_info:
         birthdate = birthdate
         mobilenumber = prosonal_info['mobilenumber']
         pinnumber = prosonal_info['pinnumber']
-        with open('walmartCardInfo\\%s.txt' % email, 'w', encoding='utf-8') as fp:
+        with open('walmartCardInfo%s\\%s.txt' % (current_time, email), 'w', encoding='utf-8') as fp:
             fp.write('''SN: %s: %s: %s: %s: %s: %s: %s: %s
 
 ----------------------------------------------------------------------------------------------------------
 
+GV: %s----%s----%s
+Recovery Email: %s----%s
 
 ----------------------------------------------------------------------------------------------------------
 
@@ -60,6 +66,8 @@ ID: %s----%s
 
 密保: %s, %s, %s
 ----------------------------------------------------------------------------------------------------------
-mail: %s----%s''' % (
-                firstname, lastname, address, city, state, zip_, socialnumber, birthdate, bankRoutingNumber, directDepositAccountNumber, temporaryCardNumber, expirationData, securityCode, user, user_pwd, answer_1, answer_2, answer_3, email, email_pwd))
+''' % (
+    firstname, lastname, address, city, state, zip_, socialnumber, birthdate, email, email_pwd, phone_num, recovery_email, recovery_email_pwd, bankRoutingNumber, directDepositAccountNumber, temporaryCardNumber, expirationData, securityCode, user, user_pwd, answer_1, answer_2, answer_3))
+    sql = 'UPDATE email_info set is_output=1 where id=%s'
+    commit_sql(conn, sql, email_id)
 conn.close()
