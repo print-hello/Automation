@@ -121,6 +121,8 @@ def add_product():
             new_title_res = set_new_title.text
             i = new_title_res.index('<')
             new_title = new_title_res[0:i]
+            if len(new_title) > 140:
+                new_title = new_title[0:150]
             product_tag = new_title_res[0:i]
             try:
                 product_price = result["sprice"]
