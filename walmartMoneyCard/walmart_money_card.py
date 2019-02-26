@@ -36,6 +36,8 @@ def register_account():
                 commit_sql(conn, sql, (hostname, email))
             else:
                 flow_flag = 0
+                print('No email')
+                break
         # Get register account message
         if flow_flag == 1:
             while True:
