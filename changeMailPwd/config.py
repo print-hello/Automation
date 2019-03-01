@@ -1,9 +1,12 @@
 import time
 import subprocess
 import requests
+from dbconnection import fetch_one_sql
+
 
 def check_vpn():
-    p = subprocess.Popen('.\\checkvpn.bat', shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen('.\\checkvpn.bat', shell=False,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     curline = p.stdout.readline()
     while curline != b'':
         curlines = str(curline).replace('\\r\\n', '')
@@ -17,7 +20,8 @@ def check_vpn():
 
 
 def rasphone_vpn():
-    p = subprocess.Popen('.\\rasphonevpn.bat', shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen('.\\rasphonevpn.bat', shell=False,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     curline = p.stdout.readline()
     while curline != b'':
         # print(curline)
@@ -36,9 +40,8 @@ def get_out_ip():
 
 
 def connect_vpn(conn, vpn):
-    cursor = conn.cursor()
-    cursor.execute("SELECT account, pwd, server, ip from vpn where account=%s", vpn)
-    result = cursor.fetchone()
+    sql = 'SELECT account, pwd, server, ip from vpn where account=%s'
+    result = fetch_one_sql(conn, sql, vpn)
     if result:
         vpn = result['account']
         vpn_pwd = result['pwd']
@@ -55,15 +58,13 @@ def connect_vpn(conn, vpn):
     print('Disconnect the original VPN connection')
     rasphone_vpn()
     print('Handling new VPN...')
-    check_vpn_num = check_vpn()
+    check_vpn()
     net_ip = get_out_ip()
     while True:
         if net_ip == vpn_ip:
             print('VPN connection IP is correct!')
             break
         else:
-            check_vpn_num = check_vpn()
+            check_vpn()
             time.sleep(10)
             net_ip = get_out_ip()
-    cursor.close()
-    conn.close()

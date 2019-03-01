@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from config import connect_vpn
+from dbconnection import fetch_one_sql, commit_sql
 
 
 def main():
@@ -146,22 +147,6 @@ def main():
                 continue
             time.sleep(3)
             driver.quit()
-        conn.close()
-
-
-def fetch_one_sql(conn, sql, data=None):
-    cursor = conn.cursor()
-    cursor.execute(sql, data)
-    result = cursor.fetchone()
-    cursor.close()
-    return result
-
-
-def commit_sql(conn, sql, data=None):
-    cursor = conn.cursor()
-    cursor.execute(sql, data)
-    conn.commit()
-    cursor.close()
 
 
 if __name__ == '__main__':
