@@ -1,7 +1,7 @@
 import time
 import subprocess
 import requests
-from dbconnection import read_all_sql
+from dbconnection import fetch_one_sql
 
 def check_vpn():
     p = subprocess.Popen('cmd.exe /c' + 'F:\\pinterest\\boot\\checkvpn.bat abc', 
@@ -44,17 +44,16 @@ def write_txt_time():
         fp.write(time_str)
 
 def connect_vpn(conn, vpn):
-    sql = "SELECT account, pwd, server, ip from vpn where account='%s'" % vpn
-    results = read_all_sql(conn, sql)
-    if results:
-        for row in results:
-            vpn = row['account']
-            vpn_pwd = row['pwd']
-            vpn_ip = row['ip']
-            vpn_server = row['server'].replace('.lianstone.net', '')
-            with open("F:\\pinterest\\boot\\vpn.txt", "w", encoding='utf-8') as fp:
-                print(vpn_server + "," + vpn + "," + vpn_pwd)
-                fp.write(vpn_server + "," + vpn + "," + vpn_pwd)
+    sql = "SELECT account, pwd, server, ip from vpn where account=%s"
+    result = fetch_one_sql(conn, sql, vpn)
+    if result:
+        vpn = result['account']
+        vpn_pwd = result['pwd']
+        vpn_ip = result['ip']
+        vpn_server = result['server'].replace('.lianstone.net', '')
+        with open("F:\\new_pinterest\\boot\\vpn.txt", "w", encoding='utf-8') as fp:
+            print(vpn_server + "," + vpn + "," + vpn_pwd)
+            fp.write(vpn_server + "," + vpn + "," + vpn_pwd)
     else:
         print(
             'No corresponding VPN account has been detected and the system is being shut down...')

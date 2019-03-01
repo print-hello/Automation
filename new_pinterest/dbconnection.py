@@ -1,21 +1,22 @@
 import pymysql
 
-def read_one_sql(conn, sql):
-    cur = conn.cursor()
-    cur.execute(sql)
-    result = cur.fetchone()
-    cur.close()
+
+def fetch_one_sql(conn, sql, data=None):
+    cursor = conn.cursor()
+    cursor.execute(sql, data)
+    result = cursor.fetchone()
+    cursor.close()
     return result
 
-def read_all_sql(conn, sql):
-    cur = conn.cursor()
-    cur.execute(sql)
-    results = cur.fetchall()
-    cur.close()
+def fetch_all_sql(conn, sql, data=None):
+    cursor = conn.cursor()
+    cursor.execute(sql, data)
+    results = cursor.fetchall()
+    cursor.close()
     return results
     
-def write_sql(conn, sql):
-    cur = conn.cursor()
-    cur.execute(sql)
+def commit_sql(conn, sql, data=None):
+    cursor = conn.cursor()
+    cursor.execute(sql, data)
     conn.commit()
-    cur.close()
+    cursor.close()
