@@ -1,7 +1,7 @@
 import time
 import subprocess
 import requests
-from dbconnection import read_one_sql, read_all_sql
+from dbconnection import fetch_one_sql
 
 def check_vpn():
     p = subprocess.Popen('cmd.exe /c' + 'F:\\pinterest\\boot\\checkvpn.bat abc', 
@@ -44,8 +44,8 @@ def write_txt_time():
         fp.write(time_str)
 
 def connect_vpn(conn, vpn):
-    sql = "SELECT account, pwd, server, ip from vpn where account='%s'" % vpn
-    result = read_one_sql(conn, sql)
+    sql = "SELECT account, pwd, server, ip from vpn where account=%s"
+    result = fetch_one_sql(conn, sql, vpn)
     if result:
         vpn = result['account']
         vpn_pwd = result['pwd']

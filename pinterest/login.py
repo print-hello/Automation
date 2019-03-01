@@ -2,7 +2,7 @@ from selenium import webdriver
 import time
 import requests
 import json
-from dbconnection import read_one_sql, read_all_sql, write_sql
+from dbconnection import commit_sql
 import pymysql
 
 
@@ -20,7 +20,6 @@ def login(driver, email, pwd, account_id, cookie, conn):
     driver.find_element_by_name("password").send_keys(pwd)
     driver.find_element_by_xpath("//form//button").click()
     time.sleep(5)
-
     # Determine if the login was successful
     try:
         login_flag = driver.find_element_by_xpath('//form//button/div').text
@@ -34,10 +33,10 @@ def login(driver, email, pwd, account_id, cookie, conn):
         cookies = json.dumps(cookies)
         cookies = cookies.replace('\\', '\\\\')
         cookies = cookies.replace('\"', '\\"')
-        sql = "update account set cookie='%s' where id=%s" % (cookies, account_id)
-        write_sql(conn, sql)
-
+        sql = "UPDATE account set cookie=%s where id=%s"
+        commit_sql(conn, sql, (cookies, account_id))
     return login_state
+
 
 def cookieLogin(driver, cookie):
     login_url = 'https://www.pinterest.com/login/?referrer=home_page'
@@ -67,5 +66,4 @@ def cookieLogin(driver, cookie):
         login_state = 0
     else:
         login_state = 1
-
     return login_state
