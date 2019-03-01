@@ -92,6 +92,12 @@ class Main():
                 options = webdriver.ChromeOptions()
                 options.add_argument('disable-infobars')
                 options.add_argument('user-agent="%s"' % self.agent)
+                prefs = {
+                    'profile.default_content_setting_values':
+                    {'notifications': 2
+                     }
+                }
+                options.add_experimental_option('prefs', prefs)
                 self.driver = webdriver.Chrome(chrome_options=options)
                 self.driver.maximize_window()
                 login_state = login(
@@ -511,7 +517,7 @@ class Main():
                     time.sleep(2)
                     self.driver.find_element_by_name(
                         'boardName').send_keys(board_name)
-                    time.sleep(2)
+                    time.sleep(5)
                     self.driver.find_element_by_xpath(
                         "//form//button[@type='submit']").click()
                     time.sleep(3)
