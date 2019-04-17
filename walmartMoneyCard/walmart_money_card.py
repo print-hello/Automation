@@ -18,15 +18,20 @@ def register_account():
                                user='root', password='123456',
                                db='walmartmoneycard', charset='utf8mb4',
                                cursorclass=pymysql.cursors.DictCursor)
+        sql = 'SELECT count(1) as allcount from email_info where emailIsUsed=1 and is_output=0'
+        all_count = fetch_one_sql(conn, sql)['allcount']
+        if all_count > 1000:
+            print('Today is enough!')
+            break
         # # Get email
-        sql = 'SELECT * from email_info where emailIsUsed=0 and new_pwd_usable=1 and recovery_email_changed=1 and id>994 and register_computer=%s and try_create_times<8 order by id limit 1'
+        sql = 'SELECT * from email_info where id>4946 and emailIsUsed=0 and register_computer=%s and try_create_times<8 order by id limit 1'
         get_email = fetch_one_sql(conn, sql, hostname)
         if get_email:
             email_id = get_email['id']
             email = get_email['email']
             print(email)
         else:
-            sql = 'SELECT * from email_info where emailIsUsed=0 and new_pwd_usable=1 and recovery_email_changed=1 and id>994 and register_computer="-" and try_create_times<8 order by id limit 1'
+            sql = 'SELECT * from email_info where id>4946 and emailIsUsed=0 and register_computer="-" and try_create_times<8 order by id limit 1'
             get_email = fetch_one_sql(conn, sql)
             if get_email:
                 email_id = get_email['id']
@@ -44,21 +49,31 @@ def register_account():
                 get_next_email = 0
                 get_msg_success = 0
                 msg_info_flag = 1
-                sql = 'SELECT * from email_info where id=%s'
-                try_create_times = fetch_one_sql(conn, sql, email_id)[
-                    'try_create_times']
-                print(int(try_create_times) + 1, 'times!')
-                if int(try_create_times) > 7:
-                    break
-                sql = 'SELECT * from register_info where userInfoIsUsed=0 and email_id=%s and read_num<4 order by id limit 1'
+                sql = 'SELECT * from register_info where id>19661 and userInfoIsUsed=0 and email_id=%s and read_num<4 order by id limit 1'
                 result = fetch_one_sql(conn, sql, email_id)
                 if result:
                     get_msg_success = 1
+                    sql = 'SELECT * from email_info where id=%s'
+                    try_create_times = fetch_one_sql(conn, sql, email_id)[
+                        'try_create_times']
+                    print(int(try_create_times) + 1, 'times!')
+                    if int(try_create_times) > 7:
+                        break
                 else:
-                    sql = 'SELECT * from register_info where userInfoIsUsed=0 and read_num<4 order by id limit 1'
+                    sql = 'SELECT * from register_info where id>19661 and userInfoIsUsed=0 and read_num<4 order by id limit 1'
                     result = fetch_one_sql(conn, sql)
                     if result:
                         get_msg_success = 1
+                        sql = 'SELECT * from email_info where id=%s'
+                        try_create_times = fetch_one_sql(conn, sql, email_id)[
+                            'try_create_times']
+                        print(int(try_create_times) + 1, 'times!')
+                        if int(try_create_times) > 7:
+                            break
+                    else:
+                        print('Not register info!')
+                        get_msg_success = 4
+                        break
                 if get_msg_success == 1:
                     sql = 'UPDATE email_info set try_create_times=try_create_times+1 where id=%s'
                     commit_sql(conn, sql, email_id)
@@ -79,23 +94,31 @@ def register_account():
                     options = webdriver.ChromeOptions()
                     options.add_argument('disable-infobars')
                     # options.add_argument('user-agent="%s"' % agent)
-                    p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\walmartMoneyCard\\911S5\\ProxyTool\\Autoproxytool.exe -changeproxy/US',
-                                         shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                    p.wait()
-                    time.sleep(5)
-                    driver = webdriver.Chrome(chrome_options=options)
-                    driver.maximize_window()
-                    try:
-                        driver.get(
-                            'https://www.walmartmoneycard.com/getacardnow')
+                    while True:
+                        p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\walmartMoneyCard\\911S5\\ProxyTool\\Autoproxytool.exe -changeproxy/US',
+                                             shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                        p.wait()
                         time.sleep(5)
-                    except:
-                        driver.quit()
-                        continue
-                    if driver.page_source.find('This site can’t be reached') > -1:
-                        driver.quit()
-                        continue
+                        driver = webdriver.Chrome(chrome_options=options)
+                        driver.maximize_window()
+                        try:
+                            driver.get(
+                                'https://www.walmartmoneycard.com/getacardnow')
+                            time.sleep(5)
+                        except:
+                            driver.quit()
+                            continue
+                        if driver.page_source.find('This site can’t be reached') > -1:
+                            driver.quit()
+                            continue
+                        else:
+                            break
                     try:
+                        card_type = random.randint(1, 2)
+                        if card_type == 2:
+                            driver.find_element_by_xpath(
+                                '//label[@for="cardtype-mastercard"]').click()
+                            time.sleep(1)
                         driver.find_element_by_id('FirstName').send_keys(
                             firstname)  # FirstName
                         driver.find_element_by_id(
@@ -121,7 +144,12 @@ def register_account():
                         driver.find_element_by_id('lbl-for-eca2').click()
                         time.sleep(3)
                         driver.find_element_by_id('Continue').click()
-                        time.sleep(8)
+                        time.sleep(3)
+                        try:
+                            driver.find_element_by_id('btnSendMyCard').click()
+                        except:
+                            pass
+                        time.sleep(5)
                     except Exception as e:
                         msg_info_flag = 0
                         driver.quit()
@@ -199,7 +227,7 @@ def register_account():
                             time.sleep(5)
                             driver.find_element_by_id('btnConfirm').click()
                             time.sleep(3)
-                            sql = 'UPDATE email_info set emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, answer_2=%s, answer_3=%s, create_time=%s where email=%s'
+                            sql = 'UPDATE email_info set emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, answer_2=%s, answer_3=%s, create_time=%s, register_computer="-" where email=%s'
                             commit_sql(conn, sql, (register_id, user_id, user_pwd,
                                                    answer_1, answer_2, answer_3, current_time, email))
                             driver.find_element_by_id(
@@ -215,6 +243,8 @@ def register_account():
                     time.sleep(5)
                     if get_next_email == 1:
                         break
+            if get_msg_success == 4:
+                break
         conn.close()
 
 
