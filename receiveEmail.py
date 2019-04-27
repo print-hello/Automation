@@ -24,8 +24,8 @@ def decode_str(s):
 
 
 def print_info(msg, indent=0):
-    global change_password_url
-    change_password_url = ''
+    global login_url
+    login_url = ''
     if indent == 0:
         for header in ['From', 'To', 'Subject']:
             value = msg.get(header, '')
@@ -51,21 +51,22 @@ def print_info(msg, indent=0):
             charset = guess_charset(msg)
             if charset:
                 content = content.decode(charset)
-                re_result = re.search(
-                    r'To view this content open the following URL in your browser:.+[a-zA-z]+://[^\s]*', str(content)).group()
-                change_password_url = re_result.replace(
-                    'To view this content open the following URL in your browser:', '').strip()
-            # print('%sText: %s' % ('  ' * indent, content))
+                # print(content)
+                try:
+                    login_url = re.search(
+                        r'[a-zA-z]+://www.paypal.com.*signin[^\s]*sys', str(content)).group()
+                except:
+                    login_url = 'No email'
         else:
             print('%sAttachment: %s' % ('  ' * indent, content_type))
 
 
-def change_password(email, password):
+def get_url(email, email_pwd):
+    # 连接到POP3服务器:
     server = poplib.POP3_SSL('pop.mail.yahoo.com')
     server.set_debuglevel(0)
-    # print(server.getwelcome().decode('utf-8'))
     server.user(email)
-    server.pass_(password)
+    server.pass_(email_pwd)
     print('Messages: %s. Size: %s' % server.stat())
     resp, mails, octets = server.list()
     index = len(mails)
@@ -73,6 +74,6 @@ def change_password(email, password):
     msg_content = b'\r\n'.join(lines).decode()
     msg = Parser().parsestr(msg_content)
     print_info(msg)
-    # server.dele(index)
+    # print(login_url)
     server.quit()
-    return change_password_url
+    return login_url
