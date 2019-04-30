@@ -36,12 +36,12 @@ def print_info(msg, indent=0):
                     hdr, addr = parseaddr(value)
                     name = decode_str(hdr)
                     value = u'%s <%s>' % (name, addr)
-            print('%s%s: %s' % ('  ' * indent, header, value))
+            # print('%s%s: %s' % ('  ' * indent, header, value))
     if (msg.is_multipart()):
         parts = msg.get_payload()
         for n, part in enumerate(parts):
-            print('%spart %s' % ('  ' * indent, n))
-            print('%s--------------------' % ('  ' * indent))
+            # print('%spart %s' % ('  ' * indent, n))
+            # print('%s--------------------' % ('  ' * indent))
             print_info(part, indent + 1)
             break
     else:
