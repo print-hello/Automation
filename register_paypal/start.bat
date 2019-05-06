@@ -10,7 +10,7 @@
 	if exist C:\Users\Administrator\Downloads\*.txt goto shanchulishi
 	
 	:downhostsfile
-		set web=http://localhost/downloardwf.php?filename=pphost.txt^&downname=hosts.txt
+		set web=http://104.247.192.122:2019/downloardwf.php?filename=pphost.txt^&downname=hosts.txt
 		start /max "" "C:\Program Files\Google\Chrome\Application\chrome.exe" "%web%" 
 		for /l %%i in (2,-1,0) do (
 		cls
@@ -46,7 +46,7 @@ ping /n 5 127.1>nul
 	if exist %WorkLuJin%\*.zip goto shanchuwork
 
 	:downupdaterar
-		set web=http://localhost/downloardwf.php?filename=register_paypal.zip
+		set web=http://122.114.73.114/downloardwf.php?filename=register_paypal.zip
 		start /max "" "C:\Program Files\Google\Chrome\Application\chrome.exe" "%web%" 
 		for /l %%i in (5,-1,0) do (
 		cls
@@ -61,3 +61,5 @@ ping /n 5 127.1>nul
 
 ping /n 10 127.1>nul
 start "" "C:\Users\Administrator\Desktop\work\register_paypal\register_paypal_account.py"
+ping /n 5 127.1>nul
+start "" "C:\Users\Administrator\Desktop\work\register_paypal\reboot.py"

@@ -1,4 +1,5 @@
 import os
+import re
 import pymysql
 import time
 from selenium import webdriver
@@ -87,6 +88,12 @@ def main():
                                      shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 p.wait()
                 time.sleep(5)
+                modify_port()
+                time.sleep(3)
+                p = subprocess.Popen('Proxifier.exe C:\\Users\\Administrator\\Desktop\\work\\register_paypal\\1558888888.ppx',
+                                     shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                p.wait()
+                time.sleep(3)
                 options = webdriver.ChromeOptions()
                 options.add_argument('disable-infobars')
                 driver = webdriver.Chrome(chrome_options=options)
@@ -133,6 +140,8 @@ def main():
                     pass
                 if error_code == 'It looks like you already signed up. Log in to your account.':
                     print('Already signed up')
+                    sql = 'UPDATE email_info set created_paypal_account=-1 where email=%s'
+                    commit_sql(conn, sql, email)
                     step_flag = 0
                 else:
                     driver.find_element_by_xpath(
@@ -172,14 +181,36 @@ def main():
                     driver.find_element_by_xpath(
                         '//div[@class="btnGrp"]/button').click()
                     time.sleep(5)
-                    sql = 'UPDATE email_info set paypal_pwd=%s, created_paypal_account=1 where email=%s'
-                    commit_sql(conn, sql, (paypal_pwd, email))
-                    created_flag = 1
+                    info_error = ''
                     try:
-                        driver.find_element_by_xpath('//a[@name="notnow"]').click()
-                        time.sleep(3)
+                        info_error = driver.find_element_by_xpath('//div[@class="notification"]//span').text
                     except:
                         pass
+                    if info_error:
+                        print('Info Error!')
+                        sql = 'UPDATE email_info set emailIsUsed=9 where email=%s'
+                        commit_sql(conn, sql, email)
+                    else:
+                        sql = 'UPDATE email_info set paypal_pwd=%s, created_paypal_account=1 where email=%s'
+                        commit_sql(conn, sql, (paypal_pwd, email))
+                        created_flag = 1
+                        try_set_up = 0
+                        while True:
+                            set_up_profile = ''
+                            try:
+                                set_up_profile = driver.find_element_by_xpath(
+                                    '//a[@name="notnow"]')
+                            except:
+                                pass
+                            if set_up_profile:
+                                set_up_profile.click()
+                                time.sleep(3)
+                                break
+                            else:
+                                try_set_up += 1
+                                time.sleep(3)
+                            if try_set_up > 3:
+                                break
             # 绑卡
             if created_flag == 1 and step_flag == 1:
                 if login_separately == 1:
@@ -253,6 +284,15 @@ def main():
                 elif email_type == 'yahoo.com':
                     print('Yahoo!')
                     login_yahoo(driver, conn, email, email_pwd, paypal_pwd)
+                time.sleep(3)
+                driver.get('https://www.bsdress.com/ip.php')
+                time.sleep(5)
+                ip_911 = driver.find_element_by_css_selector('body').text
+                print(ip_911)
+                if ip_911:
+                    sql = 'UPDATE email_info set ip911=%s where email=%s'
+                    commit_sql(conn, sql, (ip_911, email))
+                    time.sleep(2)
             p = subprocess.Popen('cmd.exe /c' + 'taskkill /F /im Client.exe',
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             p.wait()
@@ -276,6 +316,7 @@ def activate(driver, conn, email, paypal_pwd, activate_type):
         except:
             pass
         if input_flag == 'Password':
+            time.sleep(8)
             driver.find_element_by_id('password').send_keys(paypal_pwd)
             time.sleep(1)
             driver.find_element_by_xpath('//button[@id="btnLogin"]').click()
@@ -308,7 +349,7 @@ def activate(driver, conn, email, paypal_pwd, activate_type):
                 # Not now
                 driver.find_element_by_xpath(
                     '//button[@id="/appData/action"]').click()
-                time.sleep(3)
+                time.sleep(5)
                 sql = 'UPDATE email_info set created_paypal_account=3 where email=%s'
                 commit_sql(conn, sql, email)
                 break
@@ -590,6 +631,22 @@ def link_card(driver, conn, email, card_num, expiration_date, card_csc, created_
         else:
             time.sleep(3)
     return created_flag
+
+
+def modify_port():
+    path = 'C:\\Users\\Administrator\\AppData\\Roaming\\Proxifier\\Profiles'
+    file = 'C:\\Users\\Administrator\\Desktop\\work\\register_paypal\\1558888888.ppx'
+    filenames = os.listdir(path)
+    for filename in filenames:
+        with open(path + '\\' + filename, 'r', encoding='utf-8') as fp:
+            info = fp.read()
+    port_str = re.search(r'<Port>\d*</Port>', info).group()
+    print(port_str)
+    with open(file, 'r', encoding='utf-8') as f1, open('%s.bak' % file, 'w', encoding='utf-8') as f2:
+        for line in f1:
+            f2.write(re.sub(r'<Port>\d*</Port>', port_str, line))
+    os.remove(file)
+    os.rename('%s.bak' % file, file)
 
 
 def get_mac():
