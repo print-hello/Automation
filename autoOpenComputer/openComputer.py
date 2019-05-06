@@ -7,7 +7,7 @@ import subprocess
 import time
 
 
-TARGET_NUM = 3
+TARGET_NUM = 8
 
 
 def main():
@@ -50,7 +50,8 @@ def main():
             sql = 'SELECT * from computer_list where state=0 order by id limit %s'
             all_open_info = fetch_all_sql(conn, sql, open_count)
             if all_open_info:
-                print('目标数量:', TARGET_NUM, '当前运行数量:', virtual_count, '即将开启数量:', open_count)
+                print('目标数量:', TARGET_NUM, '当前运行数量:',
+                      virtual_count, '即将开启数量:', open_count)
                 for open_info in all_open_info:
                     file_path = open_info['file_path']
                     computer_name = open_info['computer_name']
@@ -88,12 +89,31 @@ def delete_machine(conn):
     all_done_computer1 = fetch_all_sql(conn, sql1)
     if all_done_computer1:
         for done_computer1 in all_done_computer1:
+            id_num1 = done_computer1['id']
             mac_address1 = done_computer1['mac_address']
             file_path1 = done_computer1['file_path']
             file_name1 = done_computer1['computer_name']
             path1 = '%s\\%s' % (file_path1, file_name1)
             shutil.rmtree(path1)
             print('%s Deleted!' % file_name1)
+            sql = 'DELETE from computer_list where id=%s'
+            commit_sql(conn, sql, id_num1)
+    sql2 = 'SELECT * from email_info where emailIsUsed=9 and register_pp_mac!="-" and pc_is_deleted=0'
+    all_done_computer2 = fetch_all_sql(conn, sql2)
+    if all_done_computer2:
+        for done_computer2 in all_done_computer2:
+            id_num2 = done_computer2['id']
+            mac_address2 = done_computer2['register_pp_mac']
+            sql = 'SELECT * from computer_list where mac_address=%s and state=1'
+            computer_info2 = fetch_one_sql(conn, sql, mac_address2)
+            if computer_info2:
+                file_path2 = computer_info2['file_path']
+                file_name2 = computer_info2['computer_name']
+                path2 = '%s\\%s' % (file_path2, file_name2)
+                shutil.rmtree(path2)
+                print('%s Deleted!' % file_name2)
+                sql = 'UPDATE email_info set pc_is_deleted=1 where id=%s'
+                commit_sql(conn, sql, id_num2)
 
 
 def commit_sql(conn, sql, data=None):
