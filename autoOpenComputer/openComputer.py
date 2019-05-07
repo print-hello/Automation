@@ -1,13 +1,15 @@
 import os
 import re
 import pymysql
-import psutil
+# import psutil
 import shutil
 import subprocess
 import time
+import win32gui
 
 
 TARGET_NUM = 8
+PATTERN = re.compile(r'.*DoVirt CrystalMac By Cwood@qq.com')
 
 
 def main():
@@ -37,14 +39,26 @@ def main():
                 pass
         break
     while True:
-        pids = psutil.pids()
-        process_count = 0
-        for pid in pids:
-            p = psutil.Process(pid)
-            if p.name() == 'CrystalMac.exe':
-                process_count += 1
-                # print('pid-%s, pname-%s' % (pid, p.name()))
-        virtual_count = process_count // 3
+        titles = set()
+        def foo(hwnd, mouse):
+            if win32gui.IsWindow(hwnd) and win32gui.IsWindowEnabled(hwnd) and win32gui.IsWindowVisible(hwnd):
+                titles.add(win32gui.GetWindowText(hwnd))
+        win32gui.EnumWindows(foo, 0)
+        lt = [t for t in titles if t]
+        lt.sort()
+        virtual_count = 0
+        for t in lt:
+            result = PATTERN.findall(t)
+            if result:
+                virtual_count += 1
+        # pids = psutil.pids()
+        # process_count = 0
+        # for pid in pids:
+        #     p = psutil.Process(pid)
+        #     if p.name() == 'CrystalMac.exe':
+        #         process_count += 1
+        #         # print('pid-%s, pname-%s' % (pid, p.name()))
+        # virtual_count = process_count // 3
         open_count = TARGET_NUM - virtual_count
         if open_count > 0:
             sql = 'SELECT * from computer_list where state=0 order by id limit %s'
