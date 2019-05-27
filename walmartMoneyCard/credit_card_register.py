@@ -17,22 +17,22 @@ from dbconnection import fetch_one_sql, fetch_all_sql, commit_sql
 
 
 def register_account():
-    # p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\911S5 2018-05-23 fixed\\Client.exe',
-    #                      shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    # time.sleep(8)
-    # try_time = 1
-    # while True:
-    #     win32api.keybd_event(13, 0, 0, 0)
-    #     win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
-    #     time.sleep(1)
-    #     dialog1 = win32gui.FindWindow('ThunderRT6FormDC', '911 S5 3.1')
-    #     login = win32gui.FindWindowEx(
-    #         dialog1, 0, 'ThunderRT6CommandButton', None)
-    #     win32gui.SendMessage(dialog1, win32con.WM_COMMAND, 0, login)
-    #     time.sleep(5)
-    #     try_time += 1
-    #     if try_time > 5:
-    #         break
+    p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\911S5 2018-05-23 fixed\\Client.exe',
+                         shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    time.sleep(8)
+    try_time = 1
+    while True:
+        win32api.keybd_event(13, 0, 0, 0)
+        win32api.keybd_event(13, 0, win32con.KEYEVENTF_KEYUP, 0)
+        time.sleep(1)
+        dialog1 = win32gui.FindWindow('ThunderRT6FormDC', '911 S5 3.1')
+        login = win32gui.FindWindowEx(
+            dialog1, 0, 'ThunderRT6CommandButton', None)
+        win32gui.SendMessage(dialog1, win32con.WM_COMMAND, 0, login)
+        time.sleep(5)
+        try_time += 1
+        if try_time > 5:
+            break
     while True:
         flow_flag = 1
         current_time = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -117,7 +117,7 @@ def register_account():
                     if cardType_r:
                         cardType = cardType_r['cardType']
                     while True:
-                        p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\911S5 2018-05-23 fixed\\ProxyTool\\Autoproxytool.exe -changeproxy/all/%s/%s -citynolimit' % (state, city),
+                        p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\911S5 2018-05-23 fixed\\ProxyTool\\AutoProxyTool.exe -changeproxy/all/%s/%s -citynolimit' % (state, city),
                                              shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                         p.wait()
                         time.sleep(5)
@@ -340,7 +340,7 @@ def green_dot_bank(driver,
             except:
                 pass
         except:
-            pass
+            next_step = 0
     else:
         sql = 'UPDATE register_info set userInfoIsUsed=0 where id=%s'
         commit_sql(conn, sql, register_id)
@@ -350,13 +350,16 @@ def green_dot_bank(driver,
         bankRoutingNumber_XP = '//tbody//tr[2]/td'
         bankRoutingNumber_result = explicit_wait(driver, "VOEL", [bankRoutingNumber_XP, "XPath"], 10, False)
         if bankRoutingNumber_result:
-            bankRoutingNumber = driver.find_element_by_xpath(bankRoutingNumber_XP).text
-            directDepositAccountNumber = driver.find_element_by_xpath('//tbody//tr[3]/td').text
-            print(bankRoutingNumber, directDepositAccountNumber)
-            sql = 'UPDATE email_info set bankRoutingNumber=%s, directDepositAccountNumber=%s where email=%s'
-            commit_sql(conn, sql, (bankRoutingNumber,
-                                   directDepositAccountNumber, email))
-            driver.find_element_by_xpath('//button[text()="CONTINUE"]').click()
+            try:
+                bankRoutingNumber = driver.find_element_by_xpath(bankRoutingNumber_XP).text
+                directDepositAccountNumber = driver.find_element_by_xpath('//tbody//tr[3]/td').text
+                print(bankRoutingNumber, directDepositAccountNumber)
+                sql = 'UPDATE email_info set bankRoutingNumber=%s, directDepositAccountNumber=%s where email=%s'
+                commit_sql(conn, sql, (bankRoutingNumber,
+                                       directDepositAccountNumber, email))
+                driver.find_element_by_xpath('//button[text()="CONTINUE"]').click()
+            except:
+                next_step = 0
         else:
             next_step = 0
 
@@ -364,22 +367,25 @@ def green_dot_bank(driver,
         temporaryCardNumber_XP = '//main[@class="page-main"]//section[2]//p[1]'
         temporaryCardNumber_result = explicit_wait(driver, "VOEL", [temporaryCardNumber_XP, "XPath"], 10, False)
         if temporaryCardNumber_result:
-            temporaryCardNumber = driver.find_element_by_xpath(temporaryCardNumber_XP).text
-            if temporaryCardNumber:
-                temporaryCardNumber = temporaryCardNumber.split(':')[-1].strip().replace('-', ' ')
-            expirationData = driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//p[2]').text
-            expirationData_split = expirationData.split(':')[-1].strip().split('/')
-            expirationData = expirationData_split[0] + '/' + expirationData_split[-1][-2:]
-            securityCode = driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//p[3]').text
-            securityCode = securityCode.split(':')[-1].strip()
-            print(temporaryCardNumber,
-                  expirationData, securityCode)
-            sql = 'UPDATE email_info set temporaryCardNumber=%s, expirationData=%s, securityCode=%s where email=%s'
-            commit_sql(conn, sql, (temporaryCardNumber,
-                                   expirationData, securityCode, email))
-            driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//button').click()
-            time.sleep(3)
-            driver.find_element_by_xpath('//div[@id="modal-info"]//a').click()
+            try:
+                temporaryCardNumber = driver.find_element_by_xpath(temporaryCardNumber_XP).text
+                if temporaryCardNumber:
+                    temporaryCardNumber = temporaryCardNumber.split(':')[-1].strip().replace('-', ' ')
+                expirationData = driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//p[2]').text
+                expirationData_split = expirationData.split(':')[-1].strip().split('/')
+                expirationData = expirationData_split[0] + '/' + expirationData_split[-1][-2:]
+                securityCode = driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//p[3]').text
+                securityCode = securityCode.split(':')[-1].strip()
+                print(temporaryCardNumber,
+                      expirationData, securityCode)
+                sql = 'UPDATE email_info set temporaryCardNumber=%s, expirationData=%s, securityCode=%s where email=%s'
+                commit_sql(conn, sql, (temporaryCardNumber,
+                                       expirationData, securityCode, email))
+                driver.find_element_by_xpath('//main[@class="page-main"]//section[2]//button').click()
+                time.sleep(3)
+                driver.find_element_by_xpath('//div[@id="modal-info"]//a').click()
+            except:
+                next_step = 0
         else:
             next_step = 0
 
@@ -387,40 +393,43 @@ def green_dot_bank(driver,
         input_id_XP = '//input[@id="TxtUserID"]'
         input_id_result = explicit_wait(driver, "VOEL", [input_id_XP, "XPath"], 15, False)
         if input_id_result:
-            user_id = create_random_str()
-            driver.find_element_by_xpath(input_id_XP).send_keys(user_id)
-            time.sleep(1)
-            user_pwd = create_pwd()
-            driver.find_element_by_xpath('//input[@id="TxtPassword"]').send_keys(user_pwd)
-            time.sleep(1)
-            driver.find_element_by_xpath('//input[@id="TxtConfirmPassword"]').send_keys(user_pwd)
-            time.sleep(1)
-            answer_1 = question_answer()
-            driver.find_element_by_xpath('//input[@id="TxtAnswer1"]').send_keys(answer_1)
-            time.sleep(1)
-            driver.find_element_by_xpath('//input[@id="TxtConfirmEmail"]').send_keys(email)
-            time.sleep(1)
-            driver.find_element_by_xpath('//input[@id="btnContinue"]').click()
-            last_submit_XP = '//input[@id="btnConfirm"]'
-            explicit_wait(driver, "VOEL", [last_submit_XP, "XPath"])
-            last_submit = driver.find_element_by_xpath(last_submit_XP)
-            (ActionChains(driver)
-             .move_to_element(last_submit)
-             .click()
-             .perform())
-            sql = 'UPDATE email_info set cardType=2, emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, create_time=%s, register_computer="-" where email=%s'
-            commit_sql(conn, sql, (register_id, user_id, user_pwd,
-                                   answer_1, current_time, email))
+            try:
+                user_id = create_random_str()
+                driver.find_element_by_xpath(input_id_XP).send_keys(user_id)
+                time.sleep(1)
+                user_pwd = create_pwd()
+                driver.find_element_by_xpath('//input[@id="TxtPassword"]').send_keys(user_pwd)
+                time.sleep(1)
+                driver.find_element_by_xpath('//input[@id="TxtConfirmPassword"]').send_keys(user_pwd)
+                time.sleep(1)
+                answer_1 = question_answer()
+                driver.find_element_by_xpath('//input[@id="TxtAnswer1"]').send_keys(answer_1)
+                time.sleep(1)
+                driver.find_element_by_xpath('//input[@id="TxtConfirmEmail"]').send_keys(email)
+                time.sleep(1)
+                driver.find_element_by_xpath('//input[@id="btnContinue"]').click()
+                last_submit_XP = '//input[@id="btnConfirm"]'
+                explicit_wait(driver, "VOEL", [last_submit_XP, "XPath"])
+                last_submit = driver.find_element_by_xpath(last_submit_XP)
+                (ActionChains(driver)
+                 .move_to_element(last_submit)
+                 .click()
+                 .perform())
+                sql = 'UPDATE email_info set cardType=2, emailIsUsed=1, register_info_id=%s, user=%s, user_pwd=%s, answer_1=%s, create_time=%s, register_computer="-" where email=%s'
+                commit_sql(conn, sql, (register_id, user_id, user_pwd,
+                                       answer_1, current_time, email))
 
-            end_submit_XP = '//div[@class="btn-group"]//a[2]'
-            explicit_wait(driver, "VOEL", [end_submit_XP, "XPath"])
-            end_submit = driver.find_element_by_xpath(end_submit_XP)
-            (ActionChains(driver)
-             .move_to_element(end_submit)
-             .click()
-             .perform())
-            time.sleep(3)
-            get_next_email = 1
+                end_submit_XP = '//div[@class="btn-group"]//a[2]'
+                explicit_wait(driver, "VOEL", [end_submit_XP, "XPath"])
+                end_submit = driver.find_element_by_xpath(end_submit_XP)
+                (ActionChains(driver)
+                 .move_to_element(end_submit)
+                 .click()
+                 .perform())
+                time.sleep(3)
+                get_next_email = 1
+            except:
+                pass
 
     try:
         driver.quit()
