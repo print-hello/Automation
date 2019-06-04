@@ -7,6 +7,7 @@ import subprocess
 import time
 import win32gui
 import datetime
+import socket
 
 
 TARGET_NUM = 8
@@ -14,12 +15,13 @@ PATTERN = re.compile(r'.*DoVirt CrystalMac By Cwood@qq.com')
 
 
 def main():
+    hostname = socket.gethostname()
     conn = pymysql.connect(host='localhost', port=3306,
                            user='root', password='123456',
                            db='walmartmoneycard', charset='utf8mb4',
                            cursorclass=pymysql.cursors.DictCursor)
     print('删除无用机器...')
-    delete_machine(conn)
+    delete_machine(conn, hostname)
     with open('file_path.txt', 'r', encoding='utf-8') as fp:
         file_path = fp.read().strip()
         # print(file_path)
@@ -34,12 +36,17 @@ def main():
                     mac_str = re.search(r'<Adapter slot="0".*>', msg).group()
                     mac = mac_str.split(' ')[3].split('=')[1].strip('"')
                     print(echo, ':', mac)
-                    sql = 'INSERT INTO computer_list (file_path, computer_name, mac_address) values (%s, %s, %s)'
-                    commit_sql(conn, sql, (file_path, echo, mac))
+                    sql = 'INSERT INTO computer_list (file_path, computer_name, mac_address, machine) values (%s, %s, %s, %s)'
+                    commit_sql(conn, sql, (file_path, echo, mac, hostname))
             except:
                 pass
         break
     while True:
+        sql = 'SELECT count(1) as all_count from paypal_confirm_info where used=0'
+        confirm_count = fetch_one_sql(conn, sql)['all_count']
+        print('认证信息剩余:', confirm_count)
+        if int(confirm_count) == 0:
+            break
         titles = set()
 
         def foo(hwnd, mouse):
@@ -64,8 +71,8 @@ def main():
         open_count = TARGET_NUM - virtual_count
         if open_count > 0:
             current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            sql = 'SELECT * from computer_list where state=0 order by id limit %s'
-            all_open_info = fetch_all_sql(conn, sql, open_count)
+            sql = 'SELECT * from computer_list where state=0 and machine=%s order by id limit %s'
+            all_open_info = fetch_all_sql(conn, sql, (hostname, open_count))
             if all_open_info:
                 print(current_time, '目标数量:', TARGET_NUM, '当前运行数量:',
                       virtual_count, '即将开启数量:', open_count)
@@ -84,16 +91,16 @@ def main():
                     time.sleep(9)
             else:
                 print('暂无未使用机器!重新运行未完成注册机器!')
-                sql = 'SELECT * from email_info where open_machine_times<3 and created_paypal_account<3 and emailIsUsed=1 and register_pp_mac!="-" order by id desc limit %s'
-                try_again_account = fetch_all_sql(conn, sql, open_count)
+                sql = 'SELECT * from email_info where register_machine=%s and open_machine_times<3 and created_paypal_account<3 and emailIsUsed=1 and register_pp_mac!="-" order by id desc limit %s'
+                try_again_account = fetch_all_sql(conn, sql, (hostname, open_count))
                 if try_again_account:
                     print(current_time, '目标数量:', TARGET_NUM, '当前运行数量:',
                           virtual_count, '即将开启数量:', open_count)
                     for echo in try_again_account:
                         register_pp_mac = echo['register_pp_mac']
-                        sql = 'SELECT * from computer_list where mac_address=%s'
+                        sql = 'SELECT * from computer_list where mac_address=%s and machine=%s'
                         machine_info = fetch_one_sql(
-                            conn, sql, register_pp_mac)
+                            conn, sql, (register_pp_mac, hostname))
                         if machine_info:
                             file_path = machine_info['file_path']
                             computer_name = machine_info['computer_name']
@@ -109,9 +116,9 @@ def main():
         time.sleep(180)
 
 
-def delete_machine(conn):
-    sql = 'SELECT id, register_pp_mac from email_info where created_paypal_account=3 and emailIsUsed=1 and pc_is_deleted=0'
-    all_done_computer = fetch_all_sql(conn, sql)
+def delete_machine(conn, hostname):
+    sql = 'SELECT id, register_pp_mac from email_info where register_machine=%s and created_paypal_account=3 and confirm_identity=1 and emailIsUsed=1 and pc_is_deleted=0'
+    all_done_computer = fetch_all_sql(conn, sql, hostname)
     if all_done_computer:
         for done_computer in all_done_computer:
             id_num = done_computer['id']
@@ -126,8 +133,8 @@ def delete_machine(conn):
                 print('%s Deleted!' % file_name)
                 sql = 'UPDATE email_info set pc_is_deleted=1 where id=%s'
                 commit_sql(conn, sql, id_num)
-    sql1 = 'SELECT * from computer_list where state=1 and mac_address not in (SELECT register_pp_mac from email_info)'
-    all_done_computer1 = fetch_all_sql(conn, sql1)
+    sql1 = 'SELECT * from computer_list where machine=%s and state=1 and mac_address not in (SELECT register_pp_mac from email_info)'
+    all_done_computer1 = fetch_all_sql(conn, sql1, hostname)
     if all_done_computer1:
         for done_computer1 in all_done_computer1:
             id_num1 = done_computer1['id']
@@ -139,8 +146,8 @@ def delete_machine(conn):
             print('%s Deleted!' % file_name1)
             sql = 'DELETE from computer_list where id=%s'
             commit_sql(conn, sql, id_num1)
-    sql2 = 'SELECT * from email_info where emailIsUsed=9 and register_pp_mac!="-" and pc_is_deleted=0'
-    all_done_computer2 = fetch_all_sql(conn, sql2)
+    sql2 = 'SELECT * from email_info where register_machine=%s and emailIsUsed=9 and register_pp_mac!="-" and pc_is_deleted=0'
+    all_done_computer2 = fetch_all_sql(conn, sql2, hostname)
     if all_done_computer2:
         for done_computer2 in all_done_computer2:
             id_num2 = done_computer2['id']
@@ -155,8 +162,8 @@ def delete_machine(conn):
                 print('%s Deleted!' % file_name2)
                 sql = 'UPDATE email_info set pc_is_deleted=1 where id=%s'
                 commit_sql(conn, sql, id_num2)
-    sql3 = 'SELECT * from email_info where open_machine_times=3 and created_paypal_account<3 and register_pp_mac!="-" and pc_is_deleted=0'
-    all_done_computer3 = fetch_all_sql(conn, sql3)
+    sql3 = 'SELECT * from email_info where register_machine=%s and open_machine_times=3 and created_paypal_account<3 and register_pp_mac!="-" and pc_is_deleted=0'
+    all_done_computer3 = fetch_all_sql(conn, sql3, hostname)
     if all_done_computer3:
         for done_computer3 in all_done_computer3:
             id_num3 = done_computer3['id']
