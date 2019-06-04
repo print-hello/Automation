@@ -25,6 +25,7 @@ def main():
     error_code = ''
     step_flag = 1
     get_info_success = 0
+    login_on_page = 1
     register_pp_mac = get_mac()
     sql = 'SELECT * from email_info where id>7174 and emailIsUsed=1 and register_pp_mac=%s'
     register_info = fetch_one_sql(conn, sql, register_pp_mac)
@@ -39,12 +40,16 @@ def main():
             get_info_success = 1
             email = register_info['email']
             print(email)
-            sql = 'UPDATE email_info set register_pp_mac=%s where email=%s'
-            commit_sql(conn, sql, (register_pp_mac, email))
+            with open('D:\\hostname.ini', 'r', encoding='utf-8') as fp:
+                hostname = fp.read().strip()
+                print(hostname)
+            sql = 'UPDATE email_info set register_pp_mac=%s, register_machine=%s where email=%s'
+            commit_sql(conn, sql, (register_pp_mac, hostname, email))
             change_computer_info.verify()
         else:
             print('Not data!')
     if get_info_success == 1:
+        email_id = register_info['id']
         email_pwd = register_info['email_pwd']
         paypal_pwd = register_info['email_pwd'] + '@pp'
         recovery_email = register_info['recovery_email']
@@ -83,7 +88,7 @@ def main():
                 win32gui.SendMessage(dialog1, win32con.WM_COMMAND, 0, login)
                 time.sleep(5)
                 try_time += 1
-                if try_time > 5:
+                if try_time > 10:
                     break
             while True:
                 p = subprocess.Popen('C:\\Users\\Administrator\\Desktop\\911S5 2018-05-23 fixed\\ProxyTool\\Autoproxytool.exe -changeproxy/all/%s/%s -citynolimit' % (state, city),
@@ -98,7 +103,7 @@ def main():
                 time.sleep(3)
                 options = webdriver.ChromeOptions()
                 options.add_argument('disable-infobars')
-                driver = webdriver.Chrome(chrome_options=options)
+                driver = webdriver.Chrome(options=options)
                 driver.maximize_window()
                 # 个人号
                 if login_separately == 0:
@@ -259,8 +264,9 @@ def main():
                                 paypal_pwd, recovery_email)
                 elif email_type == 'yahoo.com':
                     print('Yahoo!')
-                    login_yahoo(driver, conn, email, email_pwd, paypal_pwd)
-            if confirm_identity_state == 0 and created_flag >= 2:
+                    login_on_page = 0
+                    created_flag = login_yahoo(driver, conn, email, email_pwd, paypal_pwd, created_flag)
+            if confirm_identity_state == 0 and created_flag == 3:
                 sql = 'SELECT * from paypal_confirm_info where used=0 and read_num<3 order by id limit 1'
                 confirm_info = fetch_one_sql(conn, sql)
                 if confirm_info:
@@ -272,20 +278,20 @@ def main():
                     confirm_type = confirm_info['pay_type']
                     sql = 'UPDATE paypal_confirm_info set used=1, read_num=read_num+1 where id=%s'
                     commit_sql(conn, sql, confirm_info_id)
-                    if created_flag == 3:
+                    if login_on_page == 1:
                         login_paypal(driver, email, paypal_pwd) 
                     confirm_identity(conn, driver, email, confirm_info_id, confirm_user, confirm_pwd, routing_number, account_number, confirm_type)
                 else:
                     print('No Confirm Info!')
             time.sleep(3)
-            driver.get('https://www.bsdress.com/ip.php')
-            time.sleep(5)
-            ip_911 = driver.find_element_by_css_selector('body').text
-            print(ip_911)
-            if ip_911:
-                sql = 'UPDATE email_info set ip911=%s where email=%s'
-                commit_sql(conn, sql, (ip_911, email))
-                time.sleep(2)
+            # driver.get('https://www.bsdress.com/ip.php')
+            # time.sleep(5)
+            # ip_911 = driver.find_element_by_css_selector('body').text
+            # print(ip_911)
+            # if ip_911:
+            #     sql = 'UPDATE email_info set ip911=%s where email=%s'
+            #     commit_sql(conn, sql, (ip_911, email))
+            #     time.sleep(2)
             p = subprocess.Popen('cmd.exe /c' + 'taskkill /F /im Client.exe',
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             p.wait()
@@ -311,26 +317,29 @@ def main():
             print('Have already registered!')
 
 
-def activate(driver, conn, email, paypal_pwd, activate_type):
+def activate(driver, conn, email, paypal_pwd, created_flag):
 
     input_password_XP = '//input[@id="password"]'
-    explicit_wait(driver, "VOEL", [input_password_XP, "XPath"])
-    time.sleep(8)
-    driver.find_element_by_xpath(input_password_XP).send_keys(paypal_pwd)
-    time.sleep(1)
-    driver.find_element_by_xpath('//button[@id="btnLogin"]').click()
-    time.sleep(1)
-    if activate_type == 1:
+    input_password_flag = explicit_wait(driver, "VOEL", [input_password_XP, "XPath"])
+    if input_password_flag:
+        time.sleep(8)
+        driver.find_element_by_xpath(input_password_XP).send_keys(paypal_pwd)
+        time.sleep(1)
+        driver.find_element_by_xpath('//button[@id="btnLogin"]').click()
+        time.sleep(1)
+        created_flag = 3
         sql = 'UPDATE email_info set created_paypal_account=3 where email=%s'
         commit_sql(conn, sql, email)
-        time.sleep(5)
-        try:
-            driver.find_element_by_xpath(
-                '//p[@class="secondaryLink"]/a').click()
-            time.sleep(3)
-        except Exception as e:
-            print(e)
-    if activate_type == 0:
+
+    not_now_button_XP = '//p[@class="secondaryLink"]/a'
+    not_now_button_flag = explicit_wait(driver, "VOEL", [not_now_button_XP, "XPath"], 10, False)
+    if not_now_button_flag:
+        not_now_button = driver.find_element_by_xpath(not_now_button_XP)
+        (ActionChains(driver)
+         .move_to_element(not_now_button)
+         .click()
+         .perform())
+    else:
         while True:
             msg_code = ''
             try:
@@ -338,16 +347,14 @@ def activate(driver, conn, email, paypal_pwd, activate_type):
             except:
                 pass
             if msg_code == 'Your email is all set!':
-                time.sleep(1)
                 # Not now
                 driver.find_element_by_xpath(
                     '//button[@id="/appData/action"]').click()
-                time.sleep(5)
-                sql = 'UPDATE email_info set created_paypal_account=3 where email=%s'
-                commit_sql(conn, sql, email)
                 break
             else:
                 time.sleep(3)
+
+    return created_flag
 
 
 def login_gmail(driver, conn, email, email_pwd, paypal_pwd, recovery_email):
@@ -439,12 +446,11 @@ def login_gmail(driver, conn, email, email_pwd, paypal_pwd, recovery_email):
     # Gets the new page handle
     driver.switch_to.window(windows[2])
     time.sleep(3)
-    activate(driver, conn, email, paypal_pwd)
+    activate(driver, conn, email, paypal_pwd, created_flag)
 
 
-def login_yahoo(driver, conn, email, email_pwd, paypal_pwd):
+def login_yahoo(driver, conn, email, email_pwd, paypal_pwd, created_flag):
     activate_flag = 0
-    activate_type = 0
     time.sleep(5)
     activate_url = receiveEmail.get_url(email, email_pwd)
     if activate_url == 'No email':
@@ -456,47 +462,53 @@ def login_yahoo(driver, conn, email, email_pwd, paypal_pwd):
         except:
             pass
         email_flag_XP = '//a[@data-name="confirm_your_email"]'
-        explicit_wait(driver, "VOEL", [email_flag_XP, "XPath"])
-        email_flag = driver.find_element_by_xpath(email_flag_XP)
-        (ActionChains(driver)
-         .move_to_element(email_flag)
-         .click()
-         .perform())
-
-        click_send_button_XP = '//button[@id="js_unconfirmedEmail"]'
-        click_send_button_flag = explicit_wait(driver, "VOEL", [click_send_button_XP, "XPath"], 30, False)
-        if click_send_button_flag:
-            click_send_button = driver.find_element_by_xpath(click_send_button_XP)
+        email_flag_exist = explicit_wait(driver, "VOEL", [email_flag_XP, "XPath"], 30, False)
+        if email_flag_exist:
+            email_flag = driver.find_element_by_xpath(email_flag_XP)
             (ActionChains(driver)
-             .move_to_element(click_send_button)
+             .move_to_element(email_flag)
              .click()
              .perform())
-        else:
-            driver.refence()
+
             click_send_button_XP = '//button[@id="js_unconfirmedEmail"]'
-            explicit_wait(driver, "VOEL", [click_send_button_XP, "XPath"])
-            click_send_button = driver.find_element_by_xpath(click_send_button_XP)
-            (ActionChains(driver)
-             .move_to_element(click_send_button)
-             .click()
-             .perform())
+            click_send_button_flag = explicit_wait(driver, "VOEL", [click_send_button_XP, "XPath"], 30, False)
+            if click_send_button_flag:
+                click_send_button = driver.find_element_by_xpath(click_send_button_XP)
+                (ActionChains(driver)
+                 .move_to_element(click_send_button)
+                 .click()
+                 .perform())
+            else:
+                driver.refresh()
+                click_send_button_XP = '//button[@id="js_unconfirmedEmail"]'
+                explicit_wait(driver, "VOEL", [click_send_button_XP, "XPath"])
+                click_send_button = driver.find_element_by_xpath(click_send_button_XP)
+                (ActionChains(driver)
+                 .move_to_element(click_send_button)
+                 .click()
+                 .perform())
 
-        time.sleep(1)
-        activate_flag = 1
-        if activate_flag == 1:
-            time.sleep(10)
-            activate_url = receiveEmail.get_url(email, email_pwd)
-            activate_type = 1
+            time.sleep(1)
+            activate_flag = 1
+            if activate_flag == 1:
+                time.sleep(10)
+                activate_url = receiveEmail.get_url(email, email_pwd)
+        else:
+            created_flag = 3
+            activate_flag = 0
     else:
         activate_flag = 1
     if activate_flag == 1:
-        js = 'window.open("%s");' % activate_url
-        driver.execute_script(js)
-        windows = driver.window_handles
-        # Gets the new page handle
-        driver.switch_to.window(windows[1])
-        time.sleep(3)
-        activate(driver, conn, email, paypal_pwd, activate_type)
+        if activate_url != 'No email':
+            js = 'window.open("%s");' % activate_url
+            driver.execute_script(js)
+            windows = driver.window_handles
+            # Gets the new page handle
+            driver.switch_to.window(windows[1])
+            time.sleep(3)
+            created_flag = activate(driver, conn, email, paypal_pwd, created_flag)
+
+    return created_flag
 
 
 def login_paypal(driver, email, paypal_pwd):
@@ -588,6 +600,7 @@ def link_card(driver, conn, email, card_num, expiration_date, card_csc, created_
 
 def confirm_identity(conn, driver, email, confirm_info_id, confirm_user, confirm_pwd, routing_number, account_number, confirm_type):
     next_step = 1
+    search_bank_link_text = 0
     accountNumberLast4 = account_number[-4:]
     click_bank_link_XP = '//a[@id="bankCardLinkBankOrCard"]'
     explicit_wait(driver, "VOEL", [click_bank_link_XP, "XPath"])
@@ -675,36 +688,44 @@ def confirm_identity(conn, driver, email, confirm_info_id, confirm_user, confirm
              .perform())
         else:
             user_pwd_confirm_XP = '//div[@class="confirmBank-confirmInstantly"]/a'
-            explicit_wait(driver, "VOEL", [user_pwd_confirm_XP, "XPath"], 5)
-            user_pwd_confirm = driver.find_element_by_xpath(user_pwd_confirm_XP)
-            (ActionChains(driver)
-             .move_to_element(user_pwd_confirm)
-             .click()
-             .perform())
+            user_pwd_confirm_flag = explicit_wait(driver, "VOEL", [user_pwd_confirm_XP, "XPath"], 5, False)
+            if user_pwd_confirm_flag:
+                user_pwd_confirm = driver.find_element_by_xpath(user_pwd_confirm_XP)
+                (ActionChains(driver)
+                 .move_to_element(user_pwd_confirm)
+                 .click()
+                 .perform())
 
         input_user_XP = '//form/div/div[1]/input'
-        explicit_wait(driver, "VOEL", [input_user_XP, "XPath"])
-        driver.find_element_by_xpath(input_user_XP).send_keys(confirm_user)
-        time.sleep(1)
-        driver.find_element_by_xpath('//form/div/div[3]/input').send_keys(confirm_pwd)
-        time.sleep(1)
-        driver.find_element_by_name('continue').click()
-
-        choice_account_number_XP = '//label[@for="accountNumber-%s"]' % accountNumberLast4
-        confirm_last_step = explicit_wait(driver, "VOEL", [choice_account_number_XP, "XPath"], 120, False)
-        if confirm_last_step:
-            choice_account_number = driver.find_element_by_xpath(choice_account_number_XP)
-            (ActionChains(driver)
-             .move_to_element(choice_account_number)
-             .click()
-             .perform())
+        input_user_flag = explicit_wait(driver, "VOEL", [input_user_XP, "XPath"], 30, False)
+        if input_user_flag:
+            driver.find_element_by_xpath(input_user_XP).send_keys(confirm_user)
+            time.sleep(1)
+            driver.find_element_by_xpath('//form/div/div[3]/input').send_keys(confirm_pwd)
             time.sleep(1)
             driver.find_element_by_name('continue').click()
         else:
-            try:
+            next_step = 0
+
+        if next_step == 1:
+            choice_account_number_XP = '//label[@for="accountNumber-%s"]' % accountNumberLast4
+            confirm_last_step = explicit_wait(driver, "VOEL", [choice_account_number_XP, "XPath"], 150, False)
+            if confirm_last_step:
+                choice_account_number = driver.find_element_by_xpath(choice_account_number_XP)
+                (ActionChains(driver)
+                 .move_to_element(choice_account_number)
+                 .click()
+                 .perform())
+                time.sleep(1)
                 driver.find_element_by_name('continue').click()
+                search_bank_link_text = 1
+            else:
+                try:
+                    driver.find_element_by_name('continue').click()
+                except:
+                    pass
                 choice_account_number_XP = '//label[@for="accountNumber-%s"]' % accountNumberLast4
-                confirm_last_step = explicit_wait(driver, "VOEL", [choice_account_number_XP, "XPath"], 120, False)
+                confirm_last_step = explicit_wait(driver, "VOEL", [choice_account_number_XP, "XPath"], 150, False)
                 if confirm_last_step:
                     choice_account_number = driver.find_element_by_xpath(choice_account_number_XP)
                     (ActionChains(driver)
@@ -712,21 +733,25 @@ def confirm_identity(conn, driver, email, confirm_info_id, confirm_user, confirm
                      .click()
                      .perform())
                     time.sleep(1)
-                    driver.find_element_by_name('continue').click()
-            except:
-                pass
-
-        confirm_success = ''
-        confirm_success_XP = '//div[@id="overpanel-header"]/h2'
-        success_flag = explicit_wait(driver, "VOEL", [confirm_success_XP, "XPath"], 15,  False)
-        if success_flag:
-            sql = 'UPDATE email_info set confirm_identity=1, confirm_type=%s, confirmAccountNumber=%s where email=%s'
-            commit_sql(conn, sql, (confirm_type, account_number, email))
-            print('Confirm Successsful!')
-        else:
-            print('Change back to the state!')
-            sql = 'UPDATE paypal_confirm_info set used=0 where id=%s'
-            commit_sql(conn, sql, confirm_info_id)
+                    try:
+                        driver.find_element_by_name('continue').click()
+                        search_bank_link_text = 1
+                    except:
+                        pass
+        # print(search_bank_link_text)
+        if search_bank_link_text == 1:
+            confirm_success_XP = '//h2[text()="Bank linked!"]'
+            success_flag = explicit_wait(driver, "VOEL", [confirm_success_XP, "XPath"], 20,  False)
+            if success_flag:
+                sql = 'UPDATE email_info set confirm_identity=1, confirm_type=%s, confirmAccountNumber=%s where email=%s'
+                commit_sql(conn, sql, (confirm_type, account_number, email))
+                print('Confirm Successsful!')
+                sql = 'UPDATE paypal_confirm_info set used=2 where id=%s'
+                commit_sql(conn, sql, confirm_info_id)
+            # else:
+                # print('Change back to the state!')
+                # sql = 'UPDATE paypal_confirm_info set used=0 where id=%s'
+                # commit_sql(conn, sql, confirm_info_id)
 
 
 def modify_port():
