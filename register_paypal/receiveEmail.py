@@ -24,8 +24,8 @@ def decode_str(s):
 
 
 def print_info(msg, indent=0):
-    global login_url
-    login_url = ''
+    global paypal_confirm_url
+    paypal_confirm_url = ''
     if indent == 0:
         for header in ['From', 'To', 'Subject']:
             value = msg.get(header, '')
@@ -53,27 +53,35 @@ def print_info(msg, indent=0):
                 content = content.decode(charset)
                 # print(content)
                 try:
-                    login_url = re.search(
+                    paypal_confirm_url = re.search(
                         r'[a-zA-z]+://www.paypal.com.*signin[^\s]*sys', str(content)).group()
                 except:
-                    login_url = 'No email'
+                    paypal_confirm_url = False
         else:
             print('%sAttachment: %s' % ('  ' * indent, content_type))
+            paypal_confirm_url = False
 
 
-def get_url(email, email_pwd):
+def get_confirm_url(email, email_pwd):
     # 连接到POP3服务器:
     server = poplib.POP3_SSL('pop.mail.yahoo.com')
     server.set_debuglevel(0)
     server.user(email)
     server.pass_(email_pwd)
     print('Messages: %s. Size: %s' % server.stat())
-    resp, mails, octets = server.list()
-    index = len(mails)
-    resp, lines, octets = server.retr(index)
-    msg_content = b'\r\n'.join(lines).decode()
-    msg = Parser().parsestr(msg_content)
-    print_info(msg)
-    # print(login_url)
-    server.quit()
-    return login_url
+    try:
+        resp, mails, octets = server.list()
+        index = len(mails)
+        resp, lines, octets = server.retr(index)
+        msg_content = b'\r\n'.join(lines).decode()
+        msg = Parser().parsestr(msg_content)
+        print_info(msg)
+    except:
+        pass
+    # print(paypal_confirm_url)
+    try:
+        server.quit()
+    except:
+        pass
+        
+    return paypal_confirm_url

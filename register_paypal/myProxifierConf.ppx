@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxifierProfile version="101" platform="Windows" product_id="0" product_minver="310">
+  <Options>
+    <Resolve>
+      <AutoModeDetection enabled="false" />
+      <ViaProxy enabled="true">
+        <TryLocalDnsFirst enabled="false" />
+      </ViaProxy>
+      <ExclusionList>%ComputerName%; localhost; *.local;</ExclusionList>
+    </Resolve>
+    <Encryption mode="disabled" />
+    <HttpProxiesSupport enabled="false" />
+    <HandleDirectConnections enabled="false" />
+    <ConnectionLoopDetection enabled="false" />
+    <ProcessServices enabled="false" />
+    <ProcessOtherUsers enabled="false" />
+  </Options>
+  <ProxyList>
+    <Proxy id="100" type="SOCKS5">
+      <Address>127.0.0.1</Address>
+      <Port>20635</Port>
+      <Options>0</Options>
+    </Proxy>
+  </ProxyList>
+  <ChainList />
+  <RuleList>
+    <Rule enabled="true">
+      <Name>Rule0</Name>
+      <Applications>Client.exe; ProxyTool.exe; Client_hall.exe; Socket.exe; forward.exe; newsocket.exe; newforward.exe; lineupd.exe; vpnclient.exe ;</Applications>
+      <Action type="Direct" />
+    </Rule>
+    <Rule enabled="true">
+      <Name>Rule1</Name>
+      <Targets>localhost; 127.0.0.1; %ComputerName%; 192.168.1.*;</Targets>
+      <Action type="Direct" />
+    </Rule>
+    <Rule enabled="false">
+      <Name>Rule2</Name>
+      <Action type="Block" />
+    </Rule>
+    <Rule enabled="true">
+      <Name>Rule3</Name>
+      <Applications>chrome.exe; python.exe ;flash*.exe; java*.exe; jp2launcher.exe</Applications>
+      <Action type="Proxy">100</Action>
+    </Rule>
+    <Rule enabled="true">
+      <Name>Default</Name>
+      <Action type="Direct" />
+    </Rule>
+  </RuleList>
+</ProxifierProfile>
