@@ -1,4 +1,4 @@
-# Automation 自动化操作脚本集合
+# 产品数据抓取及发布
 + autoOpenComputer[V-BOX 虚拟机无人值守自启动及启动数量控制]
 + changMailPwd[Yahoo, Gmail 邮箱密码自动修改]
 + change_ip[VPS 服务端 IP 轮换]
