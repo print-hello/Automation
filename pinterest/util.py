@@ -1,3 +1,4 @@
+import re
 import time
 import requests
 import subprocess
@@ -47,8 +48,8 @@ def explicit_wait(driver, track, ec_params, timeout=35, notify=True):
     return result
 
 
-def check_vpn():
-    p = subprocess.Popen('cmd.exe /c' + 'F:\\pinterest\\boot\\checkvpn.bat abc',
+def check_vpn(execute_path):
+    p = subprocess.Popen('cmd.exe /c' + '%s\\boot\\checkvpn.bat abc' % execute_path,
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     curline = p.stdout.readline()
     while curline != b'':
@@ -62,8 +63,8 @@ def check_vpn():
         return 1
 
 
-def rasphone_vpn():
-    p = subprocess.Popen("cmd.exe /c" + 'F:\\pinterest\\boot\\rasphonevpn.bat abc',
+def rasphone_vpn(execute_path):
+    p = subprocess.Popen("cmd.exe /c" + '%s\\boot\\rasphonevpn.bat abc' % execute_path,
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     curline = p.stdout.readline()
     while curline != b'':
@@ -73,12 +74,16 @@ def rasphone_vpn():
     p.wait()
 
 
-def get_out_ip():
-    url = "http://20019.ip138.com/ic.asp"
-    r = requests.get(url)
-    txt = r.text
-    ip = txt[txt.find("[") + 1: txt.find("]")]
-    print('ip:' + ip)
+def get_public_ip(agent):
+    headers = {
+        'User-Agent': agent,
+    }
+    url = "http://200019.ip138.com/"
+    r = requests.get(url, headers=headers)
+    ip_text = (r.text).strip()
+    ip = re.search(r'\d+.\d+.\d+.\d+', ip_text).group()
+    print('IP:', ip)
+
     return ip
 
 
@@ -87,39 +92,39 @@ def write_txt_time():
     time_min = int(time.strftime('%M', time.localtime(time.time()))) * 60
     time_sec = int(time.strftime('%S', time.localtime(time.time())))
     time_str = str(time_hour + time_min + time_sec)
-    # with open('F:\\new_pinterest\\boot\\config_time.txt', 'w', encoding='utf-8') as fp:
-    #     fp.write(time_str)
+    with open('.\\boot\\config_time.txt', 'w', encoding='utf-8') as fp:
+        fp.write(time_str)
 
 
-def connect_vpn(conn, vpn):
-    sql = "SELECT account, pwd, server, ip from vpn where account=%s"
-    result = fetch_one_sql(conn, sql, vpn)
+def connect_vpn(conn, agent, vpn, execute_path):
+    sql = "SELECT account, pwd, server, ip FROM vpn WHERE account=%s"
+    result = conn.op_select_one(sql, vpn)
     if result:
         vpn = result['account']
         vpn_pwd = result['pwd']
         vpn_ip = result['ip']
         vpn_server = result['server'].replace('.lianstone.net', '')
-        with open("F:\\new_pinterest\\boot\\vpn.txt", "w", encoding='utf-8') as fp:
-            print(vpn_server + "," + vpn + "," + vpn_pwd)
-            fp.write(vpn_server + "," + vpn + "," + vpn_pwd)
+        with open("%s\\boot\\vpn.txt" % execute_path, "w", encoding='utf-8') as fp:
+            print(vpn_server + "," + vpn)
+            fp.write(vpn_server + ',' + vpn + ',' + vpn_pwd)
     else:
         print(
             'No corresponding VPN account has been detected and the system is being shut down...')
         time.sleep(600)
         os.system('Shutdown -s -t 0')
     print('Disconnect the original VPN connection')
-    rasphone_vpn()
+    rasphone_vpn(execute_path)
     write_txt_time()
     print('Handling new VPN...')
-    check_vpn()
-    net_ip = get_out_ip()
+    check_vpn(execute_path)
+    public_ip = get_public_ip(agent)
     write_txt_time()
     while True:
-        if net_ip == vpn_ip:
+        if public_ip == vpn_ip:
             print('VPN connection IP is correct!')
             break
         else:
-            check_vpn()
+            check_vpn(execute_path)
             write_txt_time()
             time.sleep(10)
-            net_ip = get_out_ip()
+            public_ip = get_public_ip(agent)
