@@ -185,6 +185,7 @@ def upload_pic(driver, conn, step_flag, current_time, account_id, upload_web, up
 # Random browse
 def random_browsing(driver,
                     conn,
+                    homefeed_url,
                     account_id,
                     step_flag,
                     save_pic_control,
@@ -215,7 +216,7 @@ def random_browsing(driver,
                         close_AD_page(driver)
                     except Exception as e:
                         if save_pic_control == 1 and (i + 1) % 2 == 0:
-                            save_pic(driver, conn, account_id, step_flag)
+                            save_pic(driver, conn, homefeed_url, account_id, step_flag)
 
                     win32api.keybd_event(27, 0, 0, 0)
                     win32api.keybd_event(
@@ -248,7 +249,7 @@ def close_AD_page(driver):
 
 
 # save a picture
-def save_pic(driver, conn, account_id, step_flag, board_name='like', belong=2, pin_pic_url=False):
+def save_pic(driver, conn, homefeed_url, account_id, step_flag, board_name='like', belong=2, pin_pic_url=False):
 
     add_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
     if not pin_pic_url:
@@ -312,12 +313,12 @@ def save_pic(driver, conn, account_id, step_flag, board_name='like', belong=2, p
 
                         conn.op_commit(sql, (account_id, pin_pic_url, add_time))
                     else:
-                        driver.get('https://www.pinterest.com')
+                        driver.get(homefeed_url)
 
         write_txt_time()
 
 
-def create_board(driver, conn, account_id, create_board_num, cr_bo_success=1):
+def create_board(driver, conn, homefeed_url, account_id, create_board_num):
     sql = "SELECT home_page FROM account WHERE id=%s"
     result = conn.op_select_one(sql, account_id)
     if result:
@@ -325,6 +326,7 @@ def create_board(driver, conn, account_id, create_board_num, cr_bo_success=1):
         sql = "SELECT board_name FROM board_template ORDER BY RAND() LIMIT %s"
         results = conn.op_select_all(sql, create_board_num)
         for board_echo in results:
+            cr_bo_success = 1
             board_name = board_echo['board_name']
             print('Boardname', board_name)
 
@@ -354,11 +356,11 @@ def create_board(driver, conn, account_id, create_board_num, cr_bo_success=1):
 
             if cr_bo_success == 1:
                 sql = "UPDATE account SET created_boards=created_boards+1 WHERE id=%s"
-                conn1.op_commit(sql, account_id)
+                conn.op_commit(sql, account_id)
 
             write_txt_time()
 
-        driver.get('https://www.pinterest.com')
+        driver.get(homefeed_url)
 
 
 def input_board_text(driver, board_name, cr_bo_success):
@@ -392,7 +394,7 @@ def input_board_text(driver, board_name, cr_bo_success):
     return cr_bo_success
 
 
-def click_our_pin(driver, conn, step_flag, current_time, scroll_num, pin_self_count, search_words_count, account_id):
+def click_our_pin(driver, conn, homefeed_url, step_flag, current_time, scroll_num, pin_self_count, search_words_count, account_id):
     print('Start searching for our images')
     sql = "SELECT count(-1) AS allnum FROM pin_history WHERE account_id=%s AND add_time>=%s"
     pin_count = conn.op_select_one(sql, (account_id, current_time))['allnum']
@@ -403,9 +405,11 @@ def click_our_pin(driver, conn, step_flag, current_time, scroll_num, pin_self_co
         for res in results:
             http_in_sql = res['web_url']
             http_in_sql_list.append(http_in_sql)
-        sql = "SELECT * FROM search_words WHERE word_type=1 ORDER BY RAND() LIMIT %s"
+        sql = "SELECT * FROM search_words WHERE word_type=100 ORDER BY RAND() LIMIT %s"
         key_wrods = conn.op_select_all(sql, search_words_count)
         if key_wrods:
+            driver.get(homefeed_url)
+            time.sleep(5)
             for key_wrod in key_wrods:
                 search_key_words = key_wrod['word']
                 board_name = key_wrod['boards']
@@ -415,16 +419,33 @@ def click_our_pin(driver, conn, step_flag, current_time, scroll_num, pin_self_co
                 if not input_search_flag:
                     input_search_XP = '//input[@name="searchBoxInput"]'
 
-                try:
-                    driver.find_element_by_xpath('//button[@aria-label="Remove search input"]').click()
-                except:
-                    pass
+                # try:
+                #     driver.find_element_by_xpath('//button[@aria-label="Remove search input"]').click()
+                # except:
+                #     pass
 
                 time.sleep(1)
                 driver.find_element_by_xpath(input_search_XP).click()
                 time.sleep(1)
-                driver.find_element_by_xpath(input_search_XP).send_keys(search_key_words)
+
+                # ctrl + a
+                win32api.keybd_event(17, 0, 0, 0)
+                win32api.keybd_event(65, 0, 0, 0)
+                win32api.keybd_event(
+                    65, 0, win32con.KEYEVENTF_KEYUP, 0)
+                win32api.keybd_event(
+                    17, 0, win32con.KEYEVENTF_KEYUP, 0)
                 time.sleep(1)
+
+                # Backspace
+                win32api.keybd_event(8, 0, 0, 0)
+                win32api.keybd_event(
+                    8, 0, win32con.KEYEVENTF_KEYUP, 0)
+                time.sleep(1)
+
+                driver.find_element_by_xpath(input_search_XP).send_keys(search_key_words)
+                time.sleep(3)
+                
                 win32api.keybd_event(13, 0, 0, 0)
                 win32api.keybd_event(
                     13, 0, win32con.KEYEVENTF_KEYUP, 0)
@@ -454,7 +475,7 @@ def click_our_pin(driver, conn, step_flag, current_time, scroll_num, pin_self_co
                                         pin_pic_url = web_pin_one.find_element_by_xpath(
                                             './/div[@class="pinWrapper"]//img').get_attribute('src')
                                         save_pic(
-                                            driver, conn, account_id, step_flag, board_name, 1, pin_pic_url)
+                                            driver, conn, homefeed_url, account_id, step_flag, board_name, 1, pin_pic_url)
                                         sql = "SELECT count(-1) AS allnum FROM pin_history WHERE account_id=%s AND add_time>=%s"
                                         pin_count = conn.op_select_one(sql, (account_id, current_time))['allnum']
                             except:
@@ -482,48 +503,54 @@ def click_our_pin(driver, conn, step_flag, current_time, scroll_num, pin_self_co
         print('Saved enough!')
 
 
-def follow(driver, conn, step_flag, follow_num):
+def follow(driver, conn, homefeed_url, step_flag, account_id, follow_num):
     print('Turn on the follow function, count:', follow_num)
-    sql = 'SELECT * FROM follow_url WHERE for_config=10 LIMIT %s'
-    results = conn.op_select_all(sql, follow_num)
-    if results:
-        for res in results:
-            web_url_id = res['id']
-            web_url = res['web_url']
-            home_url = res['home_url']
-            sql = 'SELECT * FROM follow_history WHERE user_id=%s AND follow_account=%s'
-            judge_exist = conn.op_select_one(sql, (web_url_id, account_id))
-            if judge_exist:
-                print('Already followed!')
-            else:
-                try:
-                    driver.get(home_url)
-                except:
-                    pass
-                time.sleep(5)
-                follow_XP = '//div[@class="fixedHeader"]//div[3]//div[2]/button/div'
-                follow_flag = explicit_wait(driver, "VOEL", [follow_XP, "XPath"], 5, False)
-                if follow_flag:
-                    follow_state = driver.find_element_by_xpath(follow_XP).text
-                    if follow_state == 'Follow':
-
-                        try:
-                            driver.find_element_by_xpath(
-                                '//div[@class="fixedHeader"]//div[3]//div[2]/button').click()
-                            time.sleep(1)
-                        except:
-                            pass
+    sql = 'SELECT COUNT(1) AS all_count FROM follow_history WHERE follow_id=%s'
+    follow_count = conn.op_select_one(sql, account_id)['all_count']
+    if follow_count < 2:
+        sql = 'SELECT * FROM account WHERE home_page IS NOT NULL ORDER BY RAND() LIMIT %s'
+        results = conn.op_select_all(sql, follow_num)
+        if results:
+            for res in results:
+                user_id = res['id']
+                home_url = res['home_page']
+                sql = 'SELECT * FROM follow_history WHERE user_id=%s AND follow_id=%s'
+                judge_exist = conn.op_select_one(sql, (user_id, account_id))
+                if judge_exist:
+                    print('Already followed!')
                 else:
-
                     try:
-                        follow_state = driver.find_element_by_xpath(
-                            '//div[@class="CreatorFollowButton step0"]//div[2]/div').text
-                        if follow_state == 'Follow':
-                            driver.find_element_by_xpath(
-                                '//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
-                            time.sleep(1)
+                        driver.get(home_url)
                     except:
                         pass
-                sql = 'INSERT INTO follow_history (user_id, user, user_homepage, follow_account) VALUES (%s, %s, %s, %s)'
-                conn.op_commit(sql, (web_url_id,
-                                        web_url, home_url, account_id))
+                    time.sleep(5)
+                    follow_XP = '//div[@class="fixedHeader"]//div[3]//div[2]/button/div'
+                    follow_flag = explicit_wait(driver, "VOEL", [follow_XP, "XPath"], 5, False)
+                    if follow_flag:
+                        follow_state = driver.find_element_by_xpath(follow_XP).text
+                        if follow_state == 'Follow':
+
+                            try:
+                                driver.find_element_by_xpath(
+                                    '//div[@class="fixedHeader"]//div[3]//div[2]/button').click()
+                                time.sleep(1)
+                            except:
+                                pass
+                    else:
+
+                        try:
+                            follow_state = driver.find_element_by_xpath(
+                                '//div[@class="CreatorFollowButton step0"]//div[2]/div').text
+                            if follow_state == 'Follow':
+                                driver.find_element_by_xpath(
+                                    '//div[@class="CreatorFollowButton step0"]/div/div/div/div').click()
+                                time.sleep(1)
+                        except:
+                            pass
+                    sql = 'INSERT INTO follow_history (user_id, follow_id) VALUES (%s, %s)'
+                    conn.op_commit(sql, (user_id, account_id))
+
+            driver.get(homefeed_url)
+
+    else:
+        print('Do not need follow!')

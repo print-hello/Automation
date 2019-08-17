@@ -15,6 +15,7 @@ from login_util import get_coo
 
 from util import write_txt_time
 from util import connect_vpn
+from util import rasphone_vpn
 
 from opration_util import random_browsing
 from opration_util import save_home_url
@@ -54,8 +55,8 @@ class OPPinterest():
         self.hostname = socket.gethostname()
         self.current_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime("%Y-%m-%d")
         self.login_url = 'https://www.pinterest.com/login/?referrer=home_page'
+        self.home_url = 'https://www.pinterest.com/homefeed/'
         self.driver = None
-        self.step_flag = 1
         self.proxy_type = 0
         self.account_id = 0
         self.email = None
@@ -81,15 +82,15 @@ class OPPinterest():
         self.save_home_url_control = 0
         self.create_board_num = 0
         self.save_pic_control = 0
-        # self.follow_num = 0
+        self.follow_num = 0
         self.pin_self_count = 0
         self.created_boards = 0
         self.search_words_count = 0
         self.scroll_num = 0
-        # self.upload_done = 0
 
     def action(self):
         while True:
+            step_flag = 1
             if self.success_num > 4:
                 os.system('shutdown -r')
                 print('Clear cache')
@@ -102,8 +103,8 @@ class OPPinterest():
                 self.get_config()
                 self.success_num += 1
                 write_txt_time()
-                self.re_driver()
-                if self.step_flag == 1:
+                step_flag = self.re_driver(step_flag)
+                if step_flag == 1:
                     login_state = login(
                         self.driver, self.login_url, self.account_id, self.email, self.pwd, self.cookie)
                     time.sleep(1)
@@ -114,11 +115,13 @@ class OPPinterest():
                             cookie = get_coo(self.driver)
                             sql = 'UPDATE account SET cookie=%s WHERE id=%s'
                             self.conn.op_commit(sql, (cookie, self.account_id))
+                        self.driver.get(self.home_url)
+                        time.sleep(5)
                         handle_pop_up(self.driver)
                     else:
                         sql = 'UPDATE account SET state=%s, login_times=0, action_computer="-" WHERE id=%s'
                         self.conn.op_commit(sql, (login_state, self.account_id))
-                        self.step_flag = 0
+                        step_flag = 0
                         print('Account log-in failure, will exit the browser!')
                         try:
                             self.driver.quit()
@@ -126,7 +129,7 @@ class OPPinterest():
                             pass
                         time.sleep(5)
                         continue
-                if self.step_flag == 1:
+                if step_flag == 1:
                     
                     if self.save_home_url_control == 1:
                         print('Save home page!')
@@ -134,20 +137,20 @@ class OPPinterest():
 
                     if self.create_board_num > 0 and self.created_boards < self.create_board_num:
                         print('Start create board')
-                        create_board(self.driver, self.conn, self.account_id, self.create_board_num)
+                        create_board(self.driver, self.conn, self.home_url, self.account_id, self.create_board_num)
+
+                    if self.follow_num > 0:
+                        follow(self.driver, self.conn, self.home_url, step_flag, self.account_id, self.follow_num)
 
                     if self.random_browsing_control == 1:
                         random_browsing(
-                            self.driver, self.conn, self.account_id, self.step_flag, self.save_pic_control, self.browsing_pic_min, self.browsing_pic_max)
+                            self.driver, self.conn, self.home_url, self.account_id, step_flag, self.save_pic_control, self.browsing_pic_min, self.browsing_pic_max)
                     
-                    if self.follow_num > 0:
-                        follow(self.driver, self.step_flag, self.follow_num)
-
                     if self.click_our_pin_control == 1:
-                        click_our_pin(self.driver, self.conn, self.step_flag, self.current_time, self.scroll_num, self.pin_self_count, self.search_words_count, self.account_id)
+                        click_our_pin(self.driver, self.conn, self.home_url, step_flag, self.current_time, self.scroll_num, self.pin_self_count, self.search_words_count, self.account_id)
 
                     if self.upload_web != '-' and self.upload_pic_control == 1:
-                        upload_pic(self.driver, self.conn, self.step_flag, self.current_time, self.account_id, self.upload_web, self.upload_pic_min, self.upload_pic_max)
+                        upload_pic(self.driver, self.conn, step_flag, self.current_time, self.account_id, self.upload_web, self.upload_pic_min, self.upload_pic_max)
 
                     print('End of account processing...')
                     time.sleep(3)
@@ -160,50 +163,42 @@ class OPPinterest():
                 print('Not data! The system will reboot in 30 minutes...')
                 write_txt_time()
                 os.system('shutdown -r -t 1800')
-                time.sleep(9999)
+                time.sleep(1800)
+                break
 
     # Access to the account
     def get_account(self):
         sql = 'SELECT * from machine where v_name=%s'
-        machine_info = self.conn.op_select_one(sql, self.hostname)
+        machine_info = self.conn.op_select_one(sql, self.hostname[0])
         if machine_info:
             machine_type = machine_info['machine_type']
             if self.hostname == 'Vinter-Wang':
                 sql = 'SELECT * FROM account WHERE id=1993'
                 result = self.conn.op_select_one(sql)
             else:
-                if machine_type == 1:
-                    sql = "SELECT * FROM account WHERE port>100 AND upload_computer='-' AND action_computer=%s AND action_time<%s AND state=1 AND login_times<4 ORDER BY RAND() LIMIT 1"
-                
-                elif machine_type == 2:
-                    sql = 'SELECT * FROM account WHERE action_computer=%s AND action_time<%s AND state=1 AND vpn is not null AND login_times<4 ORDER BY RAND() LIMIT 1'
-                result = self.conn.op_select_one(sql, (self.hostname, self.current_time))
-
-            if result:
-                self.get_account_info(result)
-            else:
-                if machine_type == 1:
-                    sql = "SELECT * FROM account WHERE port>100 AND upload_computer='-' AND action_computer='-' AND action_time<%s AND state=1 AND login_times<4 ORDER BY RAND() limit 1"
-                
-                elif machine_type == 2:
-                    sql = "SELECT * from account where action_computer='-' AND action_time<%s AND state=1 AND vpn is not null AND login_times<4 ORDER BY RAND() LIMIT 1"
-                result = self.conn.op_select_one(sql, self.current_time)
+                sql = "SELECT * FROM account WHERE proxy_type=%s AND action_computer=%s AND action_time<%s AND state=1 AND login_times<4 ORDER BY action_time ASC LIMIT 1"
+                result = self.conn.op_select_one(sql, (machine_type, self.hostname, self.current_time))
 
                 if result:
                     self.get_account_info(result)
+                else:
+                    sql = "SELECT * FROM account WHERE proxy_type=%s AND action_computer='-' AND action_time<%s AND state=1 AND login_times<4 ORDER BY action_time ASC limit 1"
+                    result = self.conn.op_select_one(sql, (machine_type, self.current_time))
 
-                    sql = "UPDATE account SET action_computer=%s WHERE id=%s"
-                    self.conn.op_commit(sql, (self.hostname, self.account_id))
-                    write_txt_time()
-        else:
-            print('Machine not allocated!')
+                    if result:
+                        self.get_account_info(result)
+
+                        sql = "UPDATE account SET action_computer=%s WHERE id=%s"
+                        self.conn.op_commit(sql, (self.hostname, self.account_id))
+                        write_txt_time()
+                    else:
+                        print('Not Data!')
 
     def get_account_info(self, result):
         self.proxy_type = result['proxy_type']
         self.account_id = result["id"]
         self.email = result["email"]
         self.pwd = result["pw"]
-        self.proxy_type = result['proxy_type']
         self.port = result['port']
         self.vpn = result['vpn']
         self.upload_web = result['upload_web']
@@ -211,7 +206,6 @@ class OPPinterest():
         self.created_boards = result['created_boards']
         self.config_id = result['setting_num']
         self.agent = result['agent']
-        self.upload_done = result['upload_done']
 
         if not self.agent:
             sql = 'SELECT * FROM user_agent WHERE terminal="computer" ORDER BY RAND() LIMIT 1'
@@ -225,7 +219,7 @@ class OPPinterest():
         print("Start account processing..." + '\n' + "ID:",
               self.account_id, "Email:", self.email)
 
-    def re_driver(self):
+    def re_driver(self, step_flag):
         execute_path = os.path.abspath('.')
         webdriver_path = execute_path + '\\boot\\chromedriver.exe'
         options = webdriver.ChromeOptions()
@@ -237,16 +231,19 @@ class OPPinterest():
              }
         }
         options.add_experimental_option('prefs', prefs)
-        if self.proxy_type == 1:
-            options.add_argument(
-                "--proxy-server=http://%s:%d" % (PROXY_IP, self.port))
-        elif self.proxy_type == 2:
+        
+        if self.vpn:
             connect_vpn(self.conn, self.agent, self.vpn, execute_path)
         else:
-            print('Unassigned proxy or VPN!')
-            self.step_flag = 0
+            rasphone_vpn(execute_path)
+            time.sleep(1)
+            options.add_argument(
+                "--proxy-server=http://%s:%d" % (PROXY_IP, self.port))
+
         self.driver = webdriver.Chrome(executable_path=webdriver_path, options=options)
         self.driver.maximize_window()
+
+        return step_flag
 
     def get_account_count(self):
         sql = 'SELECT * FROM account_count WHERE id=1'
@@ -256,10 +253,6 @@ class OPPinterest():
             real_time_num = result['real_time_num']
             last_update_time = result['last_update_time']
             if str(last_update_time) < self.current_time:
-                # change_domain_state = 'UPDATE domain SET state=0 WHERE state=1'
-                # self.conn.op_commit(change_domain_state)
-                # clear_domain_account = 'UPDATE domain SET account_id=0'
-                # self.conn.op_commit(clear_domain_account)
                 recovery_mode = 'UPDATE account SET state=1 WHERE state=0'
                 self.conn.op_commit(recovery_mode)
                 sql = '''UPDATE account_count SET last_update_time=%s, all_count=

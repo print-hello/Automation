@@ -14,8 +14,8 @@ class OPMysql:
     def getmysqlconn(mysqlInfo):
         if OPMysql.__pool is None:
           __pool = PooledDB(creator=pymysql,
-                            mincached=5,
-                            maxcached=15,
+                            mincached=1,
+                            maxcached=3,
                             host=mysqlInfo['host'],
                             user=mysqlInfo['user'],
                             passwd=mysqlInfo['passwd'],

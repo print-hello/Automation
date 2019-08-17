@@ -28,8 +28,8 @@ def login(driver, login_url, account_id, email, pwd, cookie):
             driver.find_element_by_name("password").send_keys(pwd)
             time.sleep(1)
             driver.find_element_by_xpath("//form//button").click()
-            time.sleep(5)
-            login_success_XP = '//div[@class="pinWrapper"]'
+            # login_success_XP = '//div[@class="pinWrapper"]'
+            login_success_XP = '//div[text()="Home"]'
             login_success_flag = explicit_wait(driver, "VOEL", [login_success_XP, "XPath"], 15, False)
             if login_success_flag:
                 login_state = 11
@@ -39,6 +39,9 @@ def login(driver, login_url, account_id, email, pwd, cookie):
                 if reset_passwd_flag:
                     print('Error code: 9')
                     login_state = 9
+                elif driver.page_source.find('The email you entered does not belong to any account.') > -1:
+                    print('Error code: 66')
+                    login_state = 66
                 elif driver.page_source.find('Your account has been suspended') > -1:
                     print('Error code: 99')
                     login_state = 99
