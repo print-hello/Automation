@@ -36,9 +36,6 @@ MYSQLINFO = {
 }
 
 
-PROXY_IP = '127.0.0.1'
-
-
 class OPPinterest():
     def __init__(self):
         super(OPPinterest, self).__init__()
@@ -63,6 +60,7 @@ class OPPinterest():
         self.pwd = None
         self.port = 0
         self.vpn = None
+        self.proxy_ip = None
         self.upload_web = None
         self.cookie = None
         self.agent = None
@@ -109,7 +107,7 @@ class OPPinterest():
                         self.driver, self.login_url, self.account_id, self.email, self.pwd, self.cookie)
                     time.sleep(1)
                     if login_state == 1 or login_state == 11:
-                        sql = "UPDATE account SET state=1, action_time=%s, login_times=login_times+1 WHERE id=%s"
+                        sql = "UPDATE account SET state=1, action_time=%s, proxy_err_times=0 WHERE id=%s"
                         self.conn.op_commit(sql, (self.current_time, self.account_id))
                         if login_state == 11:
                             cookie = get_coo(self.driver)
@@ -119,7 +117,10 @@ class OPPinterest():
                         time.sleep(5)
                         handle_pop_up(self.driver)
                     else:
-                        sql = 'UPDATE account SET state=%s, login_times=0, action_computer="-" WHERE id=%s'
+                        if login_state == 2:
+                            sql = 'UPDATE account set proxy_err_times=proxy_err_times+1 where id=%s'
+                            self.conn.op_commit(sql, self.account_id)
+                        sql = 'UPDATE account SET state=%s, login_times=login_times+1, action_computer="-" WHERE id=%s'
                         self.conn.op_commit(sql, (login_state, self.account_id))
                         step_flag = 0
                         print('Account log-in failure, will exit the browser!')
@@ -157,6 +158,7 @@ class OPPinterest():
                     self.driver.quit()
                     sql = 'UPDATE account SET login_times=0, action_computer="-" WHERE id=%s'
                     self.conn.op_commit(sql, self.account_id)
+                    self.conn.dispose()
                     write_txt_time()
                     time.sleep(10)
             else:
@@ -172,6 +174,7 @@ class OPPinterest():
         machine_info = self.conn.op_select_one(sql, self.hostname[0])
         if machine_info:
             machine_type = machine_info['machine_type']
+            self.proxy_ip = machine_info['proxy_ip']
             if self.hostname == 'Vinter-Wang':
                 sql = 'SELECT * FROM account WHERE id=1993'
                 result = self.conn.op_select_one(sql)
@@ -238,7 +241,7 @@ class OPPinterest():
             rasphone_vpn(execute_path)
             time.sleep(1)
             options.add_argument(
-                "--proxy-server=http://%s:%d" % (PROXY_IP, self.port))
+                "--proxy-server=http://%s:%d" % (self.proxy_ip, self.port))
 
         self.driver = webdriver.Chrome(executable_path=webdriver_path, options=options)
         self.driver.maximize_window()
@@ -255,6 +258,8 @@ class OPPinterest():
             if str(last_update_time) < self.current_time:
                 recovery_mode = 'UPDATE account SET state=1 WHERE state=0'
                 self.conn.op_commit(recovery_mode)
+                recovery_proxy_state = 'UPDATE account set state=1 WHERE state=2 and proxy_err_times<4'
+                self.conn.op_commit(recovery_proxy_state)
                 sql = '''UPDATE account_count SET last_update_time=%s, all_count=
                     (SELECT COUNT(1) FROM account WHERE state=1) WHERE id=1'''
                 self.conn.op_commit(sql, self.current_time)

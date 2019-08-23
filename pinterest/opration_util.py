@@ -550,6 +550,8 @@ def follow(driver, conn, homefeed_url, step_flag, account_id, follow_num):
                     sql = 'INSERT INTO follow_history (user_id, follow_id) VALUES (%s, %s)'
                     conn.op_commit(sql, (user_id, account_id))
 
+                write_txt_time()
+
             driver.get(homefeed_url)
 
     else:
