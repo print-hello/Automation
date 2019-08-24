@@ -6,6 +6,7 @@ import os
 import time
 import socket
 import datetime
+import logging.config
 from selenium import webdriver
 
 from DBPools import OPMysql
@@ -40,15 +41,15 @@ class OPPinterest():
     def __init__(self):
         super(OPPinterest, self).__init__()
         self.conn = OPMysql(MYSQLINFO)
-        # logging.config.fileConfig('logging.conf')
-        # self.logs = logging.getLogger()
-        # email = logging.handlers.SMTPHandler(("smtp.163.com", 25), 'sendlogging@163.com',
-        #                                      ['printhello@163.com'],
-        #                                      "Logging from my app",
-        #                                      credentials=(
-        #                                          'sendlogging@163.com', '******'),
-        #                                      )
-        # self.logs.addHandler(email)
+        logging.config.fileConfig('logging.conf')
+        self.logs = logging.getLogger()
+        email = logging.handlers.SMTPHandler(("smtp.163.com", 25), 'sendlogging@163.com',
+                                             ['printhello@163.com'],
+                                             "Logging from pinterest",
+                                             credentials=(
+                                                 'sendlogging@163.com', '123456'),
+                                             )
+        self.logs.addHandler(email)
         self.hostname = socket.gethostname()
         self.current_time = (datetime.datetime.utcnow() + datetime.timedelta(hours=8)).strftime("%Y-%m-%d")
         self.login_url = 'https://www.pinterest.com/login/?referrer=home_page'
@@ -175,9 +176,10 @@ class OPPinterest():
         if machine_info:
             machine_type = machine_info['machine_type']
             self.proxy_ip = machine_info['proxy_ip']
-            if self.hostname == 'Vinter-Wang':
-                sql = 'SELECT * FROM account WHERE id=1993'
+            if self.hostname == 'vinter-wang-co':
+                sql = 'SELECT * FROM account WHERE id=1'
                 result = self.conn.op_select_one(sql)
+                self.get_account_info(result)
             else:
                 sql = "SELECT * FROM account WHERE proxy_type=%s AND action_computer=%s AND action_time<%s AND state=1 AND login_times<4 ORDER BY action_time ASC LIMIT 1"
                 result = self.conn.op_select_one(sql, (machine_type, self.hostname, self.current_time))
@@ -254,6 +256,7 @@ class OPPinterest():
         if result:
             all_count = result['all_count']
             real_time_num = result['real_time_num']
+            max_account_num = result['max_account_num']
             last_update_time = result['last_update_time']
             if str(last_update_time) < self.current_time:
                 recovery_mode = 'UPDATE account SET state=1 WHERE state=0'
@@ -267,10 +270,11 @@ class OPPinterest():
                 sql = 'UPDATE account_count SET real_time_num=(SELECT count(1) FROM account WHERE state=1) WHERE id=1'
                 self.conn.op_commit(sql)
 
-        if all_count - real_time_num > 30:
+        if all_count - real_time_num > max_account_num:
+            print('Too many account errors today to suspend operations!')
+            self.logs.error('The maximum error limit of %d accounts has been exceeded!' % max_account_num, exc_info=True)
             os.system('shutdown -r -t 1800')
             time.sleep(9999)
-            print('Too many account errors today to suspend operations!')
 
     def get_config(self):
         print('Run configuration:', self.config_id)
