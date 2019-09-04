@@ -6,7 +6,7 @@ DB_NAME = 'data_content_587'
 
 def get_domain():
     domain_list = []
-    data = xlrd.open_workbook('domain.xlsx')
+    data = xlrd.open_workbook('domains.xlsx')
     table = data.sheets()[0]
     nrows = table.nrows
     num = 1
@@ -23,7 +23,7 @@ def main():
         "host": 'localhost',
         "user": 'root',
         "passwd": '123456',
-        "db": 'pin_link_data',
+        "db": 'pinterest',
         "port": 3306,
         "charset": 'utf8mb4'
     }
@@ -48,7 +48,7 @@ def main():
         end_num = (t + 1) * domain_info_num + 1
         print(start_num, '--->', end_num)
 
-        sql = 'UPDATE %s SET domain="%s", savebuttonlink=REPLACE(savebuttonlink, "yaohaowang.top", "%s") WHERE id BETWEEN %d AND %d' % (DB_NAME, 'https://' + domain_list[t], domain_list[t], start_num, end_num)
+        sql = 'UPDATE %s SET domain="%s", savebuttonlink=REPLACE(savebuttonlink, "newcolordress.com", "%s") WHERE id BETWEEN %d AND %d' % (DB_NAME, domain_list[t], domain_list[t].replace('https://', ''), start_num, end_num)
         conn.op_commit(sql)
 
     conn.dispose()
