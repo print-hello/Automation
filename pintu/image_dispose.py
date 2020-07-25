@@ -3,7 +3,6 @@ import json
 import random
 import pymysql
 import sqlite3
-import difflib
 
 from PIL import Image
 from PIL import ImageDraw
