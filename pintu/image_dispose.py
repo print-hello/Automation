@@ -61,7 +61,7 @@ def main():
 
                 if files:
                     img_list = list(filter(lambda x: re.match(
-                        '%s.*' % pro_model, x) != None, files))  # 生成新列表
+                        '%s.*' % pro_model, x) != None, files))
                     image_from_path = os.path.join(
                         image_from_base_path, pro_image)
 
