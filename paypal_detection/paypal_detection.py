@@ -205,59 +205,70 @@ def detection_process(browser, execute_path, post_form_path, conn, cursor, paypa
             step_flag = 0
 
         if step_flag == 1:
-            browser.get(paypal_url)
-            false_flag = 0
-            email_input_box = '//input[@id="email"]'
-            email_input_box_flag = explicit_wait(
-                browser, "VOEL", [email_input_box, "XPath"], 10, False)
-            if email_input_box_flag:
+            try:
+                browser.get(paypal_url)
                 false_flag = 0
+                email_input_box = '//input[@id="email"]'
+                email_input_box_flag = explicit_wait(
+                    browser, "VOEL", [email_input_box, "XPath"], 10, False)
+                if email_input_box_flag:
+                    false_flag = 0
 
-            else:
-                false_flag = 1
+                else:
+                    false_flag = 1
 
-            price_str = '//span[@class="ltrDisplay"]'
-            price_str_flag = explicit_wait(
-                browser, "VOEL", [price_str, "XPath"], 10, False)
-            current_time = get_time()
+                price_str = '//span[@class="ltrDisplay"]'
+                price_str_flag = explicit_wait(
+                    browser, "VOEL", [price_str, "XPath"], 10, False)
+                current_time = get_time()
 
-            if price_str_flag:
-                false_flag = 0
+                if price_str_flag:
+                    false_flag = 0
 
-            else:
-                false_flag = 1
+                else:
+                    false_flag = 1
 
-            if false_flag == 0:
-                print("Paypal is working...")
-                paypal_status = 1
+                if false_flag == 0:
+                    print("Paypal is working...")
+                    paypal_status = 1
 
-            elif false_flag == 1:
-                print("Paypal doesn't work...")
-                paypal_status = -1
+                elif false_flag == 1:
+                    print("Paypal doesn't work...")
+                    paypal_status = -1
 
-            dec_num += 1
+                dec_num += 1
 
-            cursor.execute(
-                'UPDATE paypal_info set paypal_status=%s, py_status=1, py_time=%s, dec_num=%s where id=%s', (
-                    paypal_status, current_time, dec_num, paypal_id))
-            conn.commit()
+                cursor.execute(
+                    'UPDATE paypal_info set paypal_status=%s, py_status=1, py_time=%s, dec_num=%s where id=%s', (
+                        paypal_status, current_time, dec_num, paypal_id))
+                conn.commit()
 
-            if paypal_status == 1 or dec_num == 3:
-                if dec_num == 3:
-                    print('More than 3 times, send messages!')
+                if paypal_status == 1 or dec_num == 3:
+                    if dec_num == 3:
+                        print('More than 3 times, send messages!')
 
-                php_status = 0
-                post_info = {}
-                post_info["paypal_email"] = paypal_email
-                post_info["status"] = paypal_status
-                post_info["time"] = get_time()
-                post2pp_system(conn, cursor, paypal_id, post_info, sys)
+                    php_status = 0
+                    post_info = {}
+                    post_info["paypal_email"] = paypal_email
+                    post_info["status"] = paypal_status
+                    post_info["time"] = get_time()
+                    post2pp_system(conn, cursor, paypal_id, post_info, sys)
+
+            except:
+                try:
+                    os.popen('taskkill /f /im firefox.exe')
+                except:
+                    pass
 
     else:
         pass
 
     browser.quit()
     time.sleep(1)
+    try:
+        os.popen('taskkill /f /im firefox.exe')
+    except:
+        pass
 
 
 def post2pp_system(conn, cursor, paypal_id, post_info, sys):
